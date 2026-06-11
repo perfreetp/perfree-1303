@@ -1,0 +1,812 @@
+import {
+  Store,
+  Owner,
+  Pet,
+  CheckIn,
+  FeedingTask,
+  HealthRecord,
+  InventoryItem,
+  Message,
+  Employee,
+  Schedule,
+  Bill,
+  Alert,
+  OccupancyData,
+  RevenueData,
+} from './types';
+
+export const stores: Store[] = [
+  {
+    id: 'store-1',
+    name: '爱宠之家总店',
+    address: '北京市朝阳区建国路88号',
+    phone: '010-88888888',
+    totalCages: 30,
+    occupiedCages: 18,
+  },
+  {
+    id: 'store-2',
+    name: '爱宠之家海淀店',
+    address: '北京市海淀区中关村大街1号',
+    phone: '010-66666666',
+    totalCages: 25,
+    occupiedCages: 12,
+  },
+  {
+    id: 'store-3',
+    name: '爱宠之家朝阳店',
+    address: '北京市朝阳区望京SOHO',
+    phone: '010-77777777',
+    totalCages: 20,
+    occupiedCages: 8,
+  },
+];
+
+export const owners: Owner[] = [
+  { id: 'owner-1', name: '张伟', phone: '13800138001', wechat: 'zhangwei123' },
+  { id: 'owner-2', name: '李娜', phone: '13800138002', wechat: 'lina_pet' },
+  { id: 'owner-3', name: '王强', phone: '13800138003', wechat: 'wangqiang' },
+  { id: 'owner-4', name: '刘芳', phone: '13800138004', wechat: 'liufang' },
+  { id: 'owner-5', name: '陈明', phone: '13800138005', wechat: 'chenming' },
+  { id: 'owner-6', name: '赵丽', phone: '13800138006', wechat: 'zhaoli' },
+  { id: 'owner-7', name: '孙杰', phone: '13800138007', wechat: 'sunjie' },
+  { id: 'owner-8', name: '周婷', phone: '13800138008', wechat: 'zhouting' },
+];
+
+export const pets: Pet[] = [
+  {
+    id: 'pet-1',
+    name: '豆豆',
+    species: 'dog',
+    breed: '金毛寻回犬',
+    age: 3,
+    gender: 'male',
+    weight: 28,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20golden%20retriever%20dog%20portrait%20professional%20photo&image_size=square',
+    ownerId: 'owner-1',
+    vaccineRecords: [
+      { id: 'vac-1', name: '狂犬疫苗', date: '2026-01-15', nextDate: '2027-01-15', isExpired: false },
+      { id: 'vac-2', name: '六联疫苗', date: '2026-02-20', nextDate: '2027-02-20', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-2',
+    name: '咪咪',
+    species: 'cat',
+    breed: '英国短毛猫',
+    age: 2,
+    gender: 'female',
+    weight: 4.5,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20british%20shorthair%20cat%20blue%20gray%20portrait&image_size=square',
+    ownerId: 'owner-2',
+    vaccineRecords: [
+      { id: 'vac-3', name: '狂犬疫苗', date: '2025-12-10', nextDate: '2026-12-10', isExpired: false },
+      { id: 'vac-4', name: '猫三联', date: '2026-03-01', nextDate: '2027-03-01', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-3',
+    name: '旺财',
+    species: 'dog',
+    breed: '柴犬',
+    age: 4,
+    gender: 'male',
+    weight: 12,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20shiba%20inu%20dog%20smiling%20portrait&image_size=square',
+    ownerId: 'owner-3',
+    vaccineRecords: [
+      { id: 'vac-5', name: '狂犬疫苗', date: '2025-11-20', nextDate: '2026-11-20', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-4',
+    name: '雪球',
+    species: 'cat',
+    breed: '布偶猫',
+    age: 1,
+    gender: 'female',
+    weight: 3.8,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20ragdoll%20cat%20white%20fluffy%20blue%20eyes&image_size=square',
+    ownerId: 'owner-4',
+    vaccineRecords: [
+      { id: 'vac-6', name: '狂犬疫苗', date: '2026-04-10', nextDate: '2027-04-10', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-5',
+    name: '大黄',
+    species: 'dog',
+    breed: '拉布拉多',
+    age: 5,
+    gender: 'male',
+    weight: 32,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=yellow%20labrador%20retriever%20dog%20happy%20portrait&image_size=square',
+    ownerId: 'owner-5',
+    vaccineRecords: [
+      { id: 'vac-7', name: '狂犬疫苗', date: '2025-10-15', nextDate: '2026-10-15', isExpired: false },
+      { id: 'vac-8', name: '八联疫苗', date: '2026-01-20', nextDate: '2027-01-20', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-6',
+    name: '小花',
+    species: 'cat',
+    breed: '美短',
+    age: 3,
+    gender: 'female',
+    weight: 4,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20american%20shorthair%20cat%20silver%20tabby&image_size=square',
+    ownerId: 'owner-6',
+    vaccineRecords: [
+      { id: 'vac-9', name: '狂犬疫苗', date: '2026-02-28', nextDate: '2027-02-28', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-7',
+    name: '皮皮',
+    species: 'dog',
+    breed: '泰迪',
+    age: 2,
+    gender: 'male',
+    weight: 6,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20brown%20poodle%20dog%20toy%20poodle%20portrait&image_size=square',
+    ownerId: 'owner-7',
+    vaccineRecords: [
+      { id: 'vac-10', name: '狂犬疫苗', date: '2026-03-15', nextDate: '2027-03-15', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-8',
+    name: '橘子',
+    species: 'cat',
+    breed: '橘猫',
+    age: 4,
+    gender: 'male',
+    weight: 5.5,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20orange%20tabby%20cat%20chubby%20portrait&image_size=square',
+    ownerId: 'owner-8',
+    vaccineRecords: [
+      { id: 'vac-11', name: '狂犬疫苗', date: '2025-09-10', nextDate: '2026-09-10', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-9',
+    name: '小黑',
+    species: 'dog',
+    breed: '边牧',
+    age: 3,
+    gender: 'male',
+    weight: 20,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=border%20collie%20dog%20black%20white%20intelligent%20portrait&image_size=square',
+    ownerId: 'owner-1',
+    vaccineRecords: [
+      { id: 'vac-12', name: '狂犬疫苗', date: '2026-01-20', nextDate: '2027-01-20', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-10',
+    name: '小白',
+    species: 'cat',
+    breed: '波斯猫',
+    age: 5,
+    gender: 'female',
+    weight: 3.5,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=white%20persian%20cat%20fluffy%20blue%20eyes%20elegant&image_size=square',
+    ownerId: 'owner-2',
+    vaccineRecords: [
+      { id: 'vac-13', name: '狂犬疫苗', date: '2025-12-01', nextDate: '2026-12-01', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-11',
+    name: '阿呆',
+    species: 'dog',
+    breed: '哈士奇',
+    age: 2,
+    gender: 'male',
+    weight: 25,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=siberian%20husky%20dog%20blue%20eyes%20playful%20portrait&image_size=square',
+    ownerId: 'owner-3',
+    vaccineRecords: [
+      { id: 'vac-14', name: '狂犬疫苗', date: '2026-03-10', nextDate: '2027-03-10', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-12',
+    name: '奶茶',
+    species: 'cat',
+    breed: '奶牛猫',
+    age: 1,
+    gender: 'female',
+    weight: 3,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20black%20white%20tuxedo%20cat%20kitten%20portrait&image_size=square',
+    ownerId: 'owner-4',
+    vaccineRecords: [
+      { id: 'vac-15', name: '狂犬疫苗', date: '2026-05-01', nextDate: '2027-05-01', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-13',
+    name: '毛毛',
+    species: 'dog',
+    breed: '萨摩耶',
+    age: 4,
+    gender: 'female',
+    weight: 22,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=samoyed%20dog%20white%20fluffy%20smiling%20portrait&image_size=square',
+    ownerId: 'owner-5',
+    vaccineRecords: [
+      { id: 'vac-16', name: '狂犬疫苗', date: '2026-02-15', nextDate: '2027-02-15', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-14',
+    name: '蓝宝',
+    species: 'cat',
+    breed: '俄罗斯蓝猫',
+    age: 3,
+    gender: 'male',
+    weight: 4.2,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=russian%20blue%20cat%20gray%20green%20eyes%20elegant&image_size=square',
+    ownerId: 'owner-6',
+    vaccineRecords: [
+      { id: 'vac-17', name: '狂犬疫苗', date: '2026-01-10', nextDate: '2027-01-10', isExpired: false },
+    ],
+  },
+  {
+    id: 'pet-15',
+    name: '可乐',
+    species: 'dog',
+    breed: '柯基',
+    age: 2,
+    gender: 'female',
+    weight: 11,
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=welsh%20corgi%20dog%20cute%20short%20legs%20smiling&image_size=square',
+    ownerId: 'owner-7',
+    vaccineRecords: [
+      { id: 'vac-18', name: '狂犬疫苗', date: '2026-04-01', nextDate: '2027-04-01', isExpired: false },
+    ],
+  },
+];
+
+const today = new Date();
+const formatDate = (d: Date) => d.toISOString().split('T')[0];
+const formatDateTime = (d: Date) => d.toISOString().slice(0, 16);
+
+export const checkIns: CheckIn[] = [
+  {
+    id: 'checkin-1',
+    petId: 'pet-1',
+    ownerId: 'owner-1',
+    storeId: 'store-1',
+    checkInDate: formatDate(new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000)),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'A-01',
+    status: 'active',
+    specialRequirements: '每天需要遛两次，对鸡肉过敏',
+    dailyRate: 128,
+    deposit: 500,
+  },
+  {
+    id: 'checkin-2',
+    petId: 'pet-2',
+    ownerId: 'owner-2',
+    storeId: 'store-1',
+    checkInDate: formatDate(new Date(today.getTime() - 1 * 24 * 60 * 60 * 1000)),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'B-03',
+    status: 'active',
+    specialRequirements: '比较胆小，需要安静的环境，每天梳毛',
+    dailyRate: 98,
+    deposit: 400,
+  },
+  {
+    id: 'checkin-3',
+    petId: 'pet-3',
+    ownerId: 'owner-3',
+    storeId: 'store-1',
+    checkInDate: formatDate(new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000)),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'A-02',
+    status: 'active',
+    specialRequirements: '食欲旺盛，按时按量喂食',
+    dailyRate: 108,
+    deposit: 400,
+  },
+  {
+    id: 'checkin-4',
+    petId: 'pet-4',
+    ownerId: 'owner-4',
+    storeId: 'store-1',
+    checkInDate: formatDate(today),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'B-01',
+    status: 'active',
+    specialRequirements: '需要每天喂营养膏，早晚各一次',
+    dailyRate: 128,
+    deposit: 600,
+  },
+  {
+    id: 'checkin-5',
+    petId: 'pet-5',
+    ownerId: 'owner-5',
+    storeId: 'store-1',
+    checkInDate: formatDate(new Date(today.getTime() - 4 * 24 * 60 * 60 * 1000)),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'A-03',
+    status: 'active',
+    specialRequirements: '年纪大了，行动缓慢，需要额外关照',
+    dailyRate: 118,
+    deposit: 500,
+  },
+  {
+    id: 'checkin-6',
+    petId: 'pet-6',
+    ownerId: 'owner-6',
+    storeId: 'store-2',
+    checkInDate: formatDate(new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000)),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() + 4 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'C-02',
+    status: 'active',
+    specialRequirements: '喜欢玩逗猫棒，每天陪玩半小时',
+    dailyRate: 98,
+    deposit: 400,
+  },
+  {
+    id: 'checkin-7',
+    petId: 'pet-7',
+    ownerId: 'owner-7',
+    storeId: 'store-2',
+    checkInDate: formatDate(new Date(today.getTime() - 1 * 24 * 60 * 60 * 1000)),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'D-01',
+    status: 'active',
+    specialRequirements: '需要每天美容打理毛发',
+    dailyRate: 108,
+    deposit: 400,
+  },
+  {
+    id: 'checkin-8',
+    petId: 'pet-8',
+    ownerId: 'owner-8',
+    storeId: 'store-2',
+    checkInDate: formatDate(new Date(today.getTime() - 5 * 24 * 60 * 60 * 1000)),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'C-01',
+    status: 'active',
+    specialRequirements: '控制饮食，不要额外喂食',
+    dailyRate: 88,
+    deposit: 300,
+  },
+  {
+    id: 'checkin-9',
+    petId: 'pet-9',
+    ownerId: 'owner-1',
+    storeId: 'store-2',
+    checkInDate: formatDate(today),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() + 6 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'D-02',
+    status: 'active',
+    specialRequirements: '聪明活泼，需要大量运动时间',
+    dailyRate: 128,
+    deposit: 500,
+  },
+  {
+    id: 'checkin-10',
+    petId: 'pet-10',
+    ownerId: 'owner-2',
+    storeId: 'store-3',
+    checkInDate: formatDate(new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000)),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() + 4 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'E-01',
+    status: 'active',
+    specialRequirements: '需要每天清理眼睛周围',
+    dailyRate: 118,
+    deposit: 500,
+  },
+  {
+    id: 'checkin-11',
+    petId: 'pet-11',
+    ownerId: 'owner-3',
+    storeId: 'store-3',
+    checkInDate: formatDate(new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000)),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'F-01',
+    status: 'active',
+    specialRequirements: '精力旺盛，每天需要长时间遛放',
+    dailyRate: 118,
+    deposit: 500,
+  },
+  {
+    id: 'checkin-12',
+    petId: 'pet-12',
+    ownerId: 'owner-4',
+    storeId: 'store-3',
+    checkInDate: formatDate(new Date(today.getTime() - 1 * 24 * 60 * 60 * 1000)),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'E-02',
+    status: 'active',
+    specialRequirements: '幼猫，需要少食多餐',
+    dailyRate: 98,
+    deposit: 400,
+  },
+  {
+    id: 'checkin-13',
+    petId: 'pet-13',
+    ownerId: 'owner-5',
+    storeId: 'store-3',
+    checkInDate: formatDate(today),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'F-02',
+    status: 'active',
+    specialRequirements: '需要每天梳毛，防止打结',
+    dailyRate: 128,
+    deposit: 600,
+  },
+  {
+    id: 'checkin-14',
+    petId: 'pet-14',
+    ownerId: 'owner-6',
+    storeId: 'store-1',
+    checkInDate: formatDate(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000)),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() - 1 * 24 * 60 * 60 * 1000)),
+    actualCheckOutDate: formatDate(new Date(today.getTime() - 1 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'B-02',
+    status: 'completed',
+    specialRequirements: '安静独立，不需要过多互动',
+    dailyRate: 108,
+    deposit: 400,
+  },
+  {
+    id: 'checkin-15',
+    petId: 'pet-15',
+    ownerId: 'owner-7',
+    storeId: 'store-1',
+    checkInDate: formatDate(new Date(today.getTime() - 4 * 24 * 60 * 60 * 1000)),
+    expectedCheckOutDate: formatDate(new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000)),
+    actualCheckOutDate: formatDate(new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000)),
+    cageNumber: 'A-05',
+    status: 'completed',
+    specialRequirements: '不能剧烈运动，散步即可',
+    dailyRate: 108,
+    deposit: 400,
+  },
+];
+
+const taskTimes = ['07:00', '08:00', '12:00', '13:00', '18:00', '19:00', '20:00'];
+const taskTypes: Array<'feeding' | 'water' | 'cleaning' | 'walk' | 'bath' | 'medication'> = [
+  'feeding', 'water', 'cleaning', 'walk', 'feeding', 'water', 'cleaning'
+];
+
+export const feedingTasks: FeedingTask[] = checkIns
+  .filter(c => c.status === 'active')
+  .flatMap((checkIn, checkInIndex) => 
+    taskTypes.map((type, index) => {
+      const isCompleted = index < 3;
+      const taskDate = formatDate(today);
+      const scheduledTime = `${taskDate}T${taskTimes[index]}:00`;
+      const actualTime = isCompleted ? `${taskDate}T${taskTimes[index]}:${String(Math.floor(Math.random() * 30)).padStart(2, '0')}` : undefined;
+      
+      return {
+        id: `task-${checkInIndex * 10 + index}`,
+        checkInId: checkIn.id,
+        employeeId: index % 2 === 0 ? 'emp-1' : 'emp-2',
+        type,
+        scheduledTime,
+        actualTime,
+        foodAmount: type === 'feeding' ? 150 + Math.floor(Math.random() * 100) : undefined,
+        status: isCompleted ? 'completed' as const : 'pending' as const,
+        notes: isCompleted ? '状态良好，食欲正常' : undefined,
+        inventoryId: type === 'feeding' ? 'inv-1' : undefined,
+        notifyOwner: isCompleted && Math.random() > 0.5,
+      };
+    })
+  );
+
+export const healthRecords: HealthRecord[] = checkIns
+  .filter(c => c.status === 'active')
+  .slice(0, 8)
+  .flatMap((checkIn, index) => {
+    const records: HealthRecord[] = [];
+    for (let i = 0; i < 3; i++) {
+      const recordDate = formatDate(new Date(today.getTime() - i * 24 * 60 * 60 * 1000));
+      const isAbnormal = index === 2 && i === 0;
+      records.push({
+        id: `health-${index * 10 + i}`,
+        checkInId: checkIn.id,
+        recordDate,
+        temperature: isAbnormal ? 39.5 : 38.0 + Math.random() * 1.2,
+        mentalStatus: isAbnormal ? 'poor' as const : (['excellent', 'good', 'normal'] as const)[Math.floor(Math.random() * 3)],
+        appetite: isAbnormal ? 'poor' as const : (['excellent', 'good', 'normal'] as const)[Math.floor(Math.random() * 3)],
+        bowelMovement: (['normal', 'normal', 'soft'] as const)[Math.floor(Math.random() * 3)],
+        medication: isAbnormal ? '退烧药，每日两次' : undefined,
+        notes: isAbnormal ? '发烧，精神不佳，已联系主人' : '一切正常',
+        isAbnormal,
+      });
+    }
+    return records;
+  });
+
+export const inventoryItems: InventoryItem[] = [
+  { id: 'inv-1', name: '皇家成犬粮', type: 'food', quantity: 150, unit: 'kg', warningLevel: 30, storeId: 'store-1', lastUpdated: formatDateTime(today) },
+  { id: 'inv-2', name: '渴望六种鱼猫粮', type: 'food', quantity: 80, unit: 'kg', warningLevel: 20, storeId: 'store-1', lastUpdated: formatDateTime(today) },
+  { id: 'inv-3', name: '冠能幼犬粮', type: 'food', quantity: 45, unit: 'kg', warningLevel: 15, storeId: 'store-1', lastUpdated: formatDateTime(today) },
+  { id: 'inv-4', name: '宠物羊奶粉', type: 'food', quantity: 25, unit: '罐', warningLevel: 8, storeId: 'store-1', lastUpdated: formatDateTime(today) },
+  { id: 'inv-5', name: '狗狗零食礼包', type: 'snack', quantity: 60, unit: '袋', warningLevel: 15, storeId: 'store-1', lastUpdated: formatDateTime(today) },
+  { id: 'inv-6', name: '猫罐头', type: 'snack', quantity: 120, unit: '罐', warningLevel: 30, storeId: 'store-1', lastUpdated: formatDateTime(today) },
+  { id: 'inv-7', name: '宠物香波', type: 'supply', quantity: 35, unit: '瓶', warningLevel: 10, storeId: 'store-1', lastUpdated: formatDateTime(today) },
+  { id: 'inv-8', name: '尿垫', type: 'supply', quantity: 200, unit: '包', warningLevel: 50, storeId: 'store-1', lastUpdated: formatDateTime(today) },
+  { id: 'inv-9', name: '宠物消毒液', type: 'supply', quantity: 15, unit: '桶', warningLevel: 5, storeId: 'store-1', lastUpdated: formatDateTime(today) },
+  { id: 'inv-10', name: '驱虫药', type: 'medicine', quantity: 40, unit: '盒', warningLevel: 10, storeId: 'store-1', lastUpdated: formatDateTime(today) },
+  { id: 'inv-11', name: '益生菌', type: 'medicine', quantity: 8, unit: '盒', warningLevel: 10, storeId: 'store-1', lastUpdated: formatDateTime(today) },
+  { id: 'inv-12', name: '眼药水', type: 'medicine', quantity: 12, unit: '支', warningLevel: 5, storeId: 'store-1', lastUpdated: formatDateTime(today) },
+  { id: 'inv-13', name: '皇家成犬粮', type: 'food', quantity: 120, unit: 'kg', warningLevel: 30, storeId: 'store-2', lastUpdated: formatDateTime(today) },
+  { id: 'inv-14', name: '渴望猫粮', type: 'food', quantity: 60, unit: 'kg', warningLevel: 20, storeId: 'store-2', lastUpdated: formatDateTime(today) },
+  { id: 'inv-15', name: '皇家成犬粮', type: 'food', quantity: 85, unit: 'kg', warningLevel: 30, storeId: 'store-3', lastUpdated: formatDateTime(today) },
+  { id: 'inv-16', name: '渴望猫粮', type: 'food', quantity: 45, unit: 'kg', warningLevel: 20, storeId: 'store-3', lastUpdated: formatDateTime(today) },
+];
+
+export const employees: Employee[] = [
+  { id: 'emp-1', name: '张小华', role: 'staff', phone: '13900139001', storeId: 'store-1', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xiaohua' },
+  { id: 'emp-2', name: '李小明', role: 'staff', phone: '13900139002', storeId: 'store-1', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming' },
+  { id: 'emp-3', name: '王店长', role: 'manager', phone: '13900139003', storeId: 'store-1', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=manager' },
+  { id: 'emp-4', name: '赵小红', role: 'staff', phone: '13900139004', storeId: 'store-2', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xiaohong' },
+  { id: 'emp-5', name: '陈小伟', role: 'staff', phone: '13900139005', storeId: 'store-2', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xiaowei' },
+  { id: 'emp-6', name: '刘店长', role: 'manager', phone: '13900139006', storeId: 'store-2', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=manager2' },
+  { id: 'emp-7', name: '孙小丽', role: 'staff', phone: '13900139007', storeId: 'store-3', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoli' },
+  { id: 'emp-8', name: '周小强', role: 'staff', phone: '13900139008', storeId: 'store-3', avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoqiang' },
+];
+
+const shiftTypes: Array<'morning' | 'afternoon' | 'night' | 'off'> = ['morning', 'afternoon', 'night', 'off', 'morning', 'afternoon', 'off'];
+
+export const schedules: Schedule[] = employees.flatMap((emp, empIndex) => 
+  Array.from({ length: 14 }, (_, dayIndex) => {
+    const date = formatDate(new Date(today.getTime() + (dayIndex - 3) * 24 * 60 * 60 * 1000));
+    return {
+      id: `schedule-${empIndex * 100 + dayIndex}`,
+      employeeId: emp.id,
+      date,
+      shiftType: shiftTypes[(empIndex + dayIndex) % 7],
+      notes: dayIndex === 0 ? '注意今天有新入住' : undefined,
+      handoverNotes: dayIndex === 0 ? 'A-01的豆豆需要额外遛放' : undefined,
+    };
+  })
+);
+
+export const messages: Message[] = [
+  {
+    id: 'msg-1',
+    checkInId: 'checkin-1',
+    senderType: 'staff',
+    senderName: '张小华',
+    content: '豆豆今天状态很好，食欲旺盛，已经完成上午的喂食。',
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=happy%20golden%20retriever%20eating%20food&image_size=square',
+    timestamp: `${formatDate(today)}T08:30:00`,
+    isRead: true,
+  },
+  {
+    id: 'msg-2',
+    checkInId: 'checkin-1',
+    senderType: 'owner',
+    senderName: '张伟',
+    content: '好的，谢谢！麻烦下午多带它活动活动。',
+    timestamp: `${formatDate(today)}T09:05:00`,
+    isRead: true,
+  },
+  {
+    id: 'msg-3',
+    checkInId: 'checkin-1',
+    senderType: 'staff',
+    senderName: '张小华',
+    content: '好的，下午带它去公园散步半小时。',
+    timestamp: `${formatDate(today)}T09:10:00`,
+    isRead: true,
+  },
+  {
+    id: 'msg-4',
+    checkInId: 'checkin-2',
+    senderType: 'staff',
+    senderName: '李小明',
+    content: '咪咪今天有点胆小，躲在角落，已经安抚过了。',
+    timestamp: `${formatDate(today)}T10:00:00`,
+    isRead: false,
+  },
+  {
+    id: 'msg-5',
+    checkInId: 'checkin-3',
+    senderType: 'owner',
+    senderName: '王强',
+    content: '请问今天可以给旺财加个餐吗？想吃点零食。',
+    timestamp: `${formatDate(today)}T11:30:00`,
+    isRead: false,
+  },
+  {
+    id: 'msg-6',
+    checkInId: 'checkin-5',
+    senderType: 'system',
+    senderName: '系统提醒',
+    content: '大黄明天将离店，请提前准备账单。',
+    timestamp: `${formatDate(today)}T09:00:00`,
+    isRead: false,
+  },
+  {
+    id: 'msg-7',
+    checkInId: 'checkin-2',
+    senderType: 'owner',
+    senderName: '李娜',
+    content: '收到，麻烦你们多费心了。',
+    timestamp: `${formatDate(today)}T10:30:00`,
+    isRead: true,
+  },
+  {
+    id: 'msg-8',
+    checkInId: 'checkin-6',
+    senderType: 'staff',
+    senderName: '赵小红',
+    content: '小花今天玩逗猫棒玩得很开心！',
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cat%20playing%20with%20feather%20toy&image_size=square',
+    timestamp: `${formatDate(today)}T14:00:00`,
+    isRead: true,
+  },
+  {
+    id: 'msg-9',
+    checkInId: 'checkin-6',
+    senderType: 'owner',
+    senderName: '赵丽',
+    content: '太好了！它在家也特别喜欢这个。',
+    timestamp: `${formatDate(today)}T14:20:00`,
+    isRead: true,
+  },
+  {
+    id: 'msg-10',
+    checkInId: 'checkin-11',
+    senderType: 'staff',
+    senderName: '周小强',
+    content: '今天帮阿呆洗了澡，香香的！',
+    photoUrl: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=husky%20dog%20after%20bath%20wet%20fluffy&image_size=square',
+    timestamp: `${formatDate(today)}T16:00:00`,
+    isRead: false,
+  },
+];
+
+export const bills: Bill[] = [
+  {
+    id: 'bill-1',
+    checkInId: 'checkin-14',
+    baseAmount: 540,
+    addonAmount: 80,
+    discount: 0,
+    totalAmount: 620,
+    paymentStatus: 'paid',
+    paymentDate: formatDate(new Date(today.getTime() - 1 * 24 * 60 * 60 * 1000)),
+    paymentMethod: '微信支付',
+    items: [
+      { id: 'item-1', description: '入住费（5天）', quantity: 5, unitPrice: 108, amount: 540 },
+      { id: 'item-2', description: '洗澡服务', quantity: 1, unitPrice: 80, amount: 80 },
+    ],
+  },
+  {
+    id: 'bill-2',
+    checkInId: 'checkin-15',
+    baseAmount: 216,
+    addonAmount: 0,
+    discount: 20,
+    totalAmount: 196,
+    paymentStatus: 'paid',
+    paymentDate: formatDate(new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000)),
+    paymentMethod: '支付宝',
+    items: [
+      { id: 'item-3', description: '入住费（2天）', quantity: 2, unitPrice: 108, amount: 216 },
+      { id: 'item-4', description: '会员折扣', quantity: 1, unitPrice: -20, amount: -20 },
+    ],
+  },
+  {
+    id: 'bill-3',
+    checkInId: 'checkin-5',
+    baseAmount: 590,
+    addonAmount: 120,
+    discount: 0,
+    totalAmount: 710,
+    paymentStatus: 'pending',
+    items: [
+      { id: 'item-5', description: '入住费（5天）', quantity: 5, unitPrice: 118, amount: 590 },
+      { id: 'item-6', description: '遛放服务', quantity: 4, unitPrice: 30, amount: 120 },
+    ],
+  },
+  {
+    id: 'bill-4',
+    checkInId: 'checkin-3',
+    baseAmount: 540,
+    addonAmount: 60,
+    discount: 0,
+    totalAmount: 600,
+    paymentStatus: 'pending',
+    items: [
+      { id: 'item-7', description: '入住费（5天）', quantity: 5, unitPrice: 108, amount: 540 },
+      { id: 'item-8', description: '临时加餐', quantity: 3, unitPrice: 20, amount: 60 },
+    ],
+  },
+  {
+    id: 'bill-5',
+    checkInId: 'checkin-8',
+    baseAmount: 616,
+    addonAmount: 100,
+    discount: 0,
+    totalAmount: 716,
+    paymentStatus: 'pending',
+    items: [
+      { id: 'item-9', description: '入住费（7天）', quantity: 7, unitPrice: 88, amount: 616 },
+      { id: 'item-10', description: '美容服务', quantity: 1, unitPrice: 100, amount: 100 },
+    ],
+  },
+];
+
+export const alerts: Alert[] = [
+  {
+    id: 'alert-1',
+    type: 'health',
+    title: '健康异常提醒',
+    message: '柴犬"旺财"体温39.5°C，精神不佳，请及时处理',
+    priority: 'high',
+    isRead: false,
+    relatedId: 'health-20',
+    createdAt: `${formatDate(today)}T09:30:00`,
+  },
+  {
+    id: 'alert-2',
+    type: 'inventory',
+    title: '库存预警',
+    message: '益生菌库存仅剩8盒，已低于警戒线10盒',
+    priority: 'medium',
+    isRead: false,
+    relatedId: 'inv-11',
+    createdAt: `${formatDate(today)}T08:00:00`,
+  },
+  {
+    id: 'alert-3',
+    type: 'vaccine',
+    title: '疫苗即将到期',
+    message: '橘猫"橘子"的狂犬疫苗将在30天后到期',
+    priority: 'low',
+    isRead: false,
+    relatedId: 'pet-8',
+    createdAt: `${formatDate(today)}T08:00:00`,
+  },
+  {
+    id: 'alert-4',
+    type: 'payment',
+    title: '待结账提醒',
+    message: '有3个入住即将离店，请提前准备账单',
+    priority: 'medium',
+    isRead: true,
+    createdAt: `${formatDate(today)}T08:00:00`,
+  },
+  {
+    id: 'alert-5',
+    type: 'inventory',
+    title: '库存预警',
+    message: '宠物消毒液库存仅剩5桶，已低于警戒线',
+    priority: 'high',
+    isRead: false,
+    relatedId: 'inv-9',
+    createdAt: `${formatDate(today)}T08:00:00`,
+  },
+];
+
+export const occupancyData: OccupancyData[] = Array.from({ length: 14 }, (_, i) => {
+  const date = formatDate(new Date(today.getTime() - (13 - i) * 24 * 60 * 60 * 1000));
+  const occupancy = 15 + Math.floor(Math.random() * 20);
+  return {
+    date,
+    occupancy,
+    capacity: 30,
+  };
+});
+
+export const revenueData: RevenueData[] = Array.from({ length: 7 }, (_, i) => {
+  const date = formatDate(new Date(today.getTime() - (6 - i) * 24 * 60 * 60 * 1000));
+  return {
+    date,
+    revenue: 2000 + Math.floor(Math.random() * 3000),
+  };
+});
