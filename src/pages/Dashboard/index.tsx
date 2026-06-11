@@ -9,6 +9,11 @@ import {
   Plus,
   Clock,
   MapPin,
+  Package,
+  Stethoscope,
+  DollarSign,
+  Syringe,
+  CheckSquare,
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
@@ -47,6 +52,7 @@ export default function Dashboard() {
     occupancyData,
     markAlertAsRead,
     completeTask,
+    markAllAlertsAsRead,
   } = useAppStore();
 
   const stats = getDashboardStats();
@@ -114,6 +120,47 @@ export default function Dashboard() {
 
   const formatTime = (dateStr: string) => {
     return dateStr.split('T')[1]?.substring(0, 5) || '';
+  };
+
+  const formatFullDateTime = (dateStr?: string) => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return '';
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const isYesterday = date.toDateString() === yesterday.toDateString();
+      
+      const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+      
+      if (isToday) return `今天 ${timeStr}`;
+      if (isYesterday) return `昨天 ${timeStr}`;
+      return `${date.getMonth() + 1}/${date.getDate()} ${timeStr}`;
+    } catch {
+      return '';
+    }
+  };
+
+  const getAlertIcon = (type: string) => {
+    switch (type) {
+      case 'health': return Stethoscope;
+      case 'inventory': return Package;
+      case 'payment': return DollarSign;
+      case 'vaccine': return Syringe;
+      default: return AlertTriangle;
+    }
+  };
+
+  const getAlertTypeLabel = (type: string) => {
+    switch (type) {
+      case 'health': return '健康';
+      case 'inventory': return '库存';
+      case 'payment': return '财务';
+      case 'vaccine': return '疫苗';
+      default: return '系统';
+    }
   };
 
   return (
@@ -278,38 +325,82 @@ export default function Dashboard() {
         <div className="space-y-6">
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">异常提醒</h2>
-              <span className="badge-danger">{alerts.length} 条</span>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-gray-800">异常提醒</h2>
+                <span className={`badge ${alerts.length > 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                  {alerts.length} 条未读
+                </span>
+              </div>
+              {alerts.length > 0 && (
+                <button
+                  onClick={() => markAllAlertsAsRead()}
+                  className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1 px-2 py-1 rounded hover:bg-primary-50 transition-colors"
+                >
+                  <CheckSquare className="w-3 h-3" />
+                  全部已读
+                </button>
+              )}
             </div>
-            <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin">
+            <div className="space-y-3 max-h-80 overflow-y-auto scrollbar-thin">
               {alerts.length === 0 ? (
-                <div className="text-center py-6 text-gray-400">
-                  <CheckCircle2 className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">暂无异常提醒</p>
+                <div className="text-center py-8 text-gray-400">
+                  <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                  <p className="text-sm">太棒了！暂无异常提醒</p>
                 </div>
               ) : (
-                alerts.map((alert, index) => (
-                  <div
-                    key={alert.id}
-                    onClick={() => markAlertAsRead(alert.id)}
-                    className={`p-3 rounded-lg border-l-4 cursor-pointer hover:shadow-md transition-all ${priorityColors[alert.priority]} animate-slide-right`}
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
-                        alert.priority === 'high' ? 'text-red-500' :
-                        alert.priority === 'medium' ? 'text-yellow-500' : 'text-blue-500'
-                      }`} />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-800 text-sm">{alert.title}</div>
-                        <div className="text-xs text-gray-600 mt-1">{alert.message}</div>
-                        <div className="text-xs text-gray-400 mt-1">
-                          {alert.createdAt.split('T')[1]?.substring(0, 5)}
+                alerts.map((alert, index) => {
+                  const AlertIcon = getAlertIcon(alert.type || '');
+                  const displayTime = formatFullDateTime(alert.createdAt);
+                  const safeDescription = alert.description?.trim() || '暂无详细描述';
+                  
+                  return (
+                    <div
+                      key={alert.id}
+                      onClick={() => markAlertAsRead(alert.id)}
+                      className={`p-3.5 rounded-lg border-l-4 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all ${priorityColors[alert.priority]} animate-slide-right`}
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          alert.priority === 'high' ? 'bg-red-100' :
+                          alert.priority === 'medium' ? 'bg-yellow-100' : 'bg-blue-100'
+                        }`}>
+                          <AlertIcon className={`w-4.5 h-4.5 ${
+                            alert.priority === 'high' ? 'text-red-500' :
+                            alert.priority === 'medium' ? 'text-yellow-500' : 'text-blue-500'
+                          }`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className={`badge text-xs py-0.5 px-2 ${
+                              alert.type === 'health' ? 'bg-pink-100 text-pink-600' :
+                              alert.type === 'inventory' ? 'bg-purple-100 text-purple-600' :
+                              alert.type === 'payment' ? 'bg-green-100 text-green-600' :
+                              alert.type === 'vaccine' ? 'bg-cyan-100 text-cyan-600' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>
+                              {getAlertTypeLabel(alert.type || '')}
+                            </span>
+                            {alert.priority === 'high' && (
+                              <span className="badge bg-red-100 text-red-600 text-xs py-0.5 px-2">
+                                紧急
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-400 ml-auto flex-shrink-0">
+                              {displayTime}
+                            </span>
+                          </div>
+                          <div className="font-semibold text-gray-800 text-sm mb-1 leading-snug">
+                            {alert.title || '未命名提醒'}
+                          </div>
+                          <div className="text-xs text-gray-600 leading-relaxed line-clamp-3">
+                            {safeDescription}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

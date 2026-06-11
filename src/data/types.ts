@@ -168,12 +168,24 @@ export interface ServiceAddon {
 export interface Alert {
   id: string;
   type: 'vaccine' | 'health' | 'inventory' | 'payment';
+  checkInId?: string;
   title: string;
-  message: string;
+  description: string;
   priority: 'low' | 'medium' | 'high';
   isRead: boolean;
   relatedId?: string;
   createdAt: string;
+}
+
+export interface FeedingPlan {
+  id: string;
+  petId: string;
+  foodType: 'dry' | 'wet' | 'raw' | 'prescription';
+  foodBrand: string;
+  inventoryId?: string;
+  defaultAmount: number;
+  dailyMeals: number;
+  specialNotes?: string;
 }
 
 export interface CheckInWithDetails extends CheckIn {

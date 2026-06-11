@@ -159,14 +159,49 @@ export default function Inventory() {
       </div>
 
       {lowStockCount > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-            <div>
-              <h4 className="font-semibold text-red-800">库存预警</h4>
-              <p className="text-sm text-red-600 mt-1">
-                有 {lowStockCount} 种商品库存低于警戒线，请及时补货。
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl p-5">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="font-bold text-red-800 text-lg">库存预警 · 请及时补货</h4>
+                <span className="badge bg-red-100 text-red-600">{lowStockCount} 种商品</span>
+              </div>
+              <p className="text-sm text-red-600 mb-3">
+                以下商品库存已低于警戒线，建议尽快采购以免影响日常运营
               </p>
+              <div className="flex flex-wrap gap-2">
+                {storeItems
+                  .filter(item => item.quantity <= item.warningLevel)
+                  .slice(0, 8)
+                  .map(item => {
+                    const isCritical = item.quantity <= item.warningLevel * 0.5;
+                    const restockAmount = Math.ceil(item.warningLevel * 2.5 - item.quantity);
+                    return (
+                      <div
+                        key={item.id}
+                        className={`px-3 py-2 rounded-lg text-sm flex items-center gap-2 ${
+                          isCritical
+                            ? 'bg-red-100 text-red-700 border border-red-200'
+                            : 'bg-orange-100 text-orange-700 border border-orange-200'
+                        }`}
+                      >
+                        <span className="font-medium">{item.name}</span>
+                        <span className="opacity-75">剩{item.quantity}{item.unit}</span>
+                        <span className="text-xs bg-white/60 px-1.5 py-0.5 rounded">
+                          建议补{restockAmount}{item.unit}
+                        </span>
+                      </div>
+                    );
+                  })}
+                {lowStockCount > 8 && (
+                  <div className="px-3 py-2 rounded-lg text-sm bg-white/60 text-gray-600 border border-gray-200">
+                    +{lowStockCount - 8} 种更多
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
