@@ -25,7 +25,7 @@ export default function CheckIn() {
     pets,
     owners,
     stores,
-    addCheckIn,
+    addCheckInWithDetails,
     completeCheckIn,
   } = useAppStore();
 
@@ -69,15 +69,19 @@ export default function CheckIn() {
     );
   });
 
-  const historyCheckIns = checkIns
-    .filter(c => c.status !== 'active')
-    .map(c => {
-      const pet = pets.find(p => p.id === c.petId)!;
-      const owner = owners.find(o => o.id === c.ownerId)!;
-      const store = stores.find(s => s.id === c.storeId)!;
-      return { ...c, pet, owner, store };
-    })
-    .filter(ci => {
+  const historyCheckIns = (() => {
+    const items = checkIns
+      .filter(c => c.status !== 'active')
+      .map(c => {
+        const pet = pets.find(p => p.id === c.petId);
+        const owner = owners.find(o => o.id === c.ownerId);
+        const store = stores.find(s => s.id === c.storeId);
+        if (!pet || !owner || !store) return null;
+        return { ...c, pet, owner, store };
+      })
+      .filter(Boolean) as any[];
+    
+    return items.filter((ci: any) => {
       if (!searchQuery) return true;
       const query = searchQuery.toLowerCase();
       return (
@@ -85,6 +89,7 @@ export default function CheckIn() {
         ci.owner.name.toLowerCase().includes(query)
       );
     });
+  })();
 
   const displayCheckIns = activeTab === 'active' ? activeCheckIns : historyCheckIns;
 
@@ -93,23 +98,32 @@ export default function CheckIn() {
       return;
     }
 
-    const ownerId = `owner-${Date.now()}`;
-    const petId = `pet-${Date.now()}`;
+    addCheckInWithDetails({
+      pet: {
+        name: newPet.name || '',
+        species: newPet.species || 'dog',
+        breed: newPet.breed || '',
+        age: newPet.age || 1,
+        gender: newPet.gender || 'male',
+        photoUrl: newPet.photoUrl || '',
+        vaccineRecords: [],
+      },
+      owner: {
+        name: newOwner.name,
+        phone: newOwner.phone,
+        wechat: newOwner.wechat || undefined,
+      },
+      checkIn: {
+        storeId: newCheckIn.storeId || 'store-1',
+        checkInDate: newCheckIn.checkInDate || new Date().toISOString().split('T')[0],
+        expectedCheckOutDate: newCheckIn.expectedCheckOutDate!,
+        cageNumber: newCheckIn.cageNumber!,
+        specialRequirements: newCheckIn.specialRequirements || '',
+        dailyRate: newCheckIn.dailyRate || 108,
+        deposit: newCheckIn.deposit || 400,
+      },
+    });
 
-    const checkInData: Omit<CheckInType, 'id'> = {
-      petId,
-      ownerId,
-      storeId: newCheckIn.storeId || 'store-1',
-      checkInDate: newCheckIn.checkInDate || new Date().toISOString().split('T')[0],
-      expectedCheckOutDate: newCheckIn.expectedCheckOutDate!,
-      cageNumber: newCheckIn.cageNumber!,
-      status: 'active',
-      specialRequirements: newCheckIn.specialRequirements || '',
-      dailyRate: newCheckIn.dailyRate || 108,
-      deposit: newCheckIn.deposit || 400,
-    };
-
-    addCheckIn(checkInData);
     setShowNewModal(false);
     setNewPet({ name: '', species: 'dog', breed: '', age: 1, gender: 'male', photoUrl: '' });
     setNewOwner({ name: '', phone: '', wechat: '' });
@@ -261,7 +275,7 @@ export default function CheckIn() {
               </div>
             )}
 
-            {checkIn.pet.vaccineRecords.some(v => v.isExpired) && (
+            {checkIn.pet.vaccineRecords?.some(v => v.isExpired) && (
               <div className="mt-3 flex items-center gap-1 text-xs text-red-600">
                 <AlertCircle className="w-3 h-3" />
                 有疫苗已过期

@@ -27,7 +27,7 @@ const shiftTypeConfig: Record<ShiftType, { label: string; icon: any; color: stri
 };
 
 export default function SchedulePage() {
-  const { schedules, employees, stores, currentStoreId, setCurrentStore } = useAppStore();
+  const { schedules, employees, stores, currentStoreId, setCurrentStore, updateSchedule } = useAppStore();
   const [selectedWeek, setSelectedWeek] = useState(0);
   const [editingSchedule, setEditingSchedule] = useState<string | null>(null);
   const [editShift, setEditShift] = useState<ShiftType>('morning');
@@ -90,7 +90,12 @@ export default function SchedulePage() {
     setEditHandover(s?.handoverNotes || '');
   };
 
-  const handleEditSave = () => {
+  const handleEditSave = (employeeId: string, date: string) => {
+    updateSchedule(employeeId, date, {
+      shiftType: editShift,
+      notes: editNotes,
+      handoverNotes: editHandover,
+    });
     setEditingSchedule(null);
   };
 
@@ -290,7 +295,7 @@ export default function SchedulePage() {
                       />
                       <div className="flex gap-1">
                         <button
-                          onClick={handleEditSave}
+                          onClick={() => handleEditSave(emp.id, day.date)}
                           className="flex-1 p-1.5 bg-primary-500 text-white rounded text-xs"
                         >
                           保存

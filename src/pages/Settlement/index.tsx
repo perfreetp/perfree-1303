@@ -33,7 +33,7 @@ const paymentStatusConfig: Record<PaymentStatus, { label: string; color: string;
 const STORE_COLORS = ['#FF7A45', '#2D6A4F', '#40916C'];
 
 export default function Settlement() {
-  const { bills, checkIns, pets, owners, stores, occupancyData, revenueData, getDashboardStats } = useAppStore();
+  const { bills, checkIns, pets, owners, stores, occupancyData, revenueData, getDashboardStats, payBill } = useAppStore();
   const [selectedTab, setSelectedTab] = useState<'overview' | 'bills'>('overview');
   const [expandedBill, setExpandedBill] = useState<string | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | 'all'>('all');
@@ -560,7 +560,10 @@ export default function Settlement() {
 
                       {bill.paymentStatus === 'pending' && (
                         <div className="mt-4 flex gap-3">
-                          <button className="btn-secondary flex-1">
+                          <button 
+                            className="btn-secondary flex-1"
+                            onClick={() => payBill(bill.id, '微信支付')}
+                          >
                             <CheckCircle2 className="w-4 h-4 mr-2" />
                             确认收款
                           </button>
