@@ -5,6 +5,7 @@ export interface Store {
   phone: string;
   totalCages: number;
   occupiedCages: number;
+  cageNumbers: string[];
 }
 
 export interface Owner {
@@ -64,6 +65,9 @@ export interface FeedingTask {
   status: TaskStatus;
   notes?: string;
   inventoryId?: string;
+  inventoryName?: string;
+  feedingPlanId?: string;
+  feedingPlanVersion?: number;
   photoUrl?: string;
   notifyOwner?: boolean;
 }
@@ -165,6 +169,8 @@ export interface ServiceAddon {
   serviceDate: string;
 }
 
+export type AlertStatus = 'pending' | 'contacted' | 'rechecked' | 'resolved';
+
 export interface Alert {
   id: string;
   type: 'vaccine' | 'health' | 'inventory' | 'payment';
@@ -173,8 +179,11 @@ export interface Alert {
   description: string;
   priority: 'low' | 'medium' | 'high';
   isRead: boolean;
+  status: AlertStatus;
   relatedId?: string;
+  relatedMessageId?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface FeedingPlan {
@@ -186,6 +195,10 @@ export interface FeedingPlan {
   defaultAmount: number;
   dailyMeals: number;
   specialNotes?: string;
+  version: number;
+  effectiveFrom: string;
+  isActive: boolean;
+  changeReason?: string;
 }
 
 export interface CheckInWithDetails extends CheckIn {

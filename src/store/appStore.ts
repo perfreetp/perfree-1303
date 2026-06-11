@@ -14,6 +14,7 @@ import {
   Alert,
   TaskType,
   FeedingPlan,
+  AlertStatus,
 } from '../data/types';
 import {
   stores as initialStores,
@@ -63,6 +64,8 @@ interface AppState {
   isCageOccupied: (storeId: string, cageNumber: string) => boolean;
   getPetHealthRecords: (checkInId: string) => any;
   getFeedingPlanForPet: (petId: string) => FeedingPlan | undefined;
+  getFeedingPlanHistory: (petId: string) => FeedingPlan[];
+  getCareOverview: () => any[];
 
   addOwner: (owner: Omit<Owner, 'id'>) => string;
   addPet: (pet: Omit<Pet, 'id'>) => string;
@@ -71,13 +74,15 @@ interface AppState {
     pet: Omit<Pet, 'id' | 'ownerId'>;
     owner: Omit<Owner, 'id'>;
     checkIn: Omit<CheckIn, 'id' | 'petId' | 'ownerId' | 'status'>;
-    feedingPlan?: Omit<FeedingPlan, 'id' | 'petId'>;
+    feedingPlan?: Omit<FeedingPlan, 'id' | 'petId' | 'version' | 'effectiveFrom' | 'isActive'>;
   }) => { success: boolean; message?: string; checkInId?: string };
   updateCheckIn: (id: string, updates: Partial<CheckIn>) => void;
   completeCheckIn: (id: string) => void;
 
   addFeedingPlan: (plan: Omit<FeedingPlan, 'id'>) => string;
   updateFeedingPlan: (petId: string, updates: Partial<FeedingPlan>) => void;
+  createFeedingPlanVersion: (petId: string, updates: Partial<FeedingPlan>, reason?: string) => string;
+  applyFeedingPlanToPendingTasks: (petId: string) => void;
 
   addTask: (task: Omit<FeedingTask, 'id'>) => string;
   updateTask: (id: string, updates: Partial<FeedingTask>) => void;
@@ -95,9 +100,11 @@ interface AppState {
 
   payBill: (id: string, paymentMethod: string) => void;
 
-  addAlert: (alert: Omit<Alert, 'id' | 'isRead' | 'createdAt'>) => string;
+  addAlert: (alert: Omit<Alert, 'id' | 'isRead' | 'createdAt' | 'status'>) => string;
   markAlertAsRead: (id: string) => void;
   markAllAlertsAsRead: () => void;
+  updateAlertStatus: (id: string, status: AlertStatus, relatedMessageId?: string) => void;
+  sendHealthReportToOwner: (alertId: string) => { success: boolean; messageId?: string };
 
   setCurrentStore: (storeId: string) => void;
 }
@@ -214,20 +221,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   getAvailableCages: (storeId) => {
     const state = get();
     const store = state.stores.find(s => s.id === storeId);
-    if (!store) return [];
+    if (!store || !store.cageNumbers) return [];
     
     const occupiedCages = state.checkIns
       .filter(c => c.storeId === storeId && c.status === 'active')
       .map(c => c.cageNumber);
     
-    const allCages: string[] = [];
-    for (let i = 1; i <= store.totalCages; i++) {
-      const cageNum = String(i).padStart(2, '0');
-      if (!occupiedCages.includes(cageNum)) {
-        allCages.push(cageNum);
-      }
-    }
-    return allCages;
+    return store.cageNumbers.filter(cage => !occupiedCages.includes(cage));
   },
 
   isCageOccupied: (storeId, cageNumber) => {
@@ -258,7 +258,70 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   getFeedingPlanForPet: (petId) => {
-    return get().feedingPlans.find(p => p.petId === petId);
+    return get().feedingPlans.find(p => p.petId === petId && p.isActive);
+  },
+
+  getFeedingPlanHistory: (petId) => {
+    return get().feedingPlans
+      .filter(p => p.petId === petId)
+      .sort((a, b) => b.version - a.version);
+  },
+
+  getCareOverview: () => {
+    const state = get();
+    const today = new Date().toISOString().split('T')[0];
+    const activeCheckIns = state.getActiveCheckIns();
+    
+    const byStore: Record<string, { store: Store; checkIns: any[] }> = {};
+    
+    activeCheckIns.forEach((ci: any) => {
+      if (!byStore[ci.storeId]) {
+        const store = state.stores.find(s => s.id === ci.storeId);
+        if (store) {
+          byStore[ci.storeId] = { store, checkIns: [] };
+        }
+      }
+      if (byStore[ci.storeId]) {
+        const todayTasks = state.feedingTasks.filter(
+          t => t.checkInId === ci.id && t.scheduledTime.startsWith(today)
+        );
+        const todayRecords = state.healthRecords.filter(
+          r => r.checkInId === ci.id && r.recordDate === today
+        );
+        const todayMessages = state.messages.filter(
+          m => m.checkInId === ci.id && m.timestamp.startsWith(today)
+        );
+        const unreadOwnerMessages = todayMessages.filter(
+          m => m.senderType === 'owner' && !m.isRead
+        ).length;
+        
+        const feedingCompleted = todayTasks.filter(t => t.type === 'feeding' && t.status === 'completed').length;
+        const feedingTotal = todayTasks.filter(t => t.type === 'feeding').length;
+        const cleaningDone = todayTasks.some(t => t.type === 'cleaning' && t.status === 'completed');
+        const hasHealthRecord = todayRecords.length > 0;
+        const hasAbnormalToday = todayRecords.some(r => r.isAbnormal);
+        
+        byStore[ci.storeId].checkIns.push({
+          ...ci,
+          todayTasks,
+          todayRecords,
+          todayMessages,
+          feedingCompleted,
+          feedingTotal,
+          cleaningDone,
+          hasHealthRecord,
+          hasAbnormalToday,
+          unreadOwnerMessages,
+        });
+      }
+    });
+    
+    return Object.values(byStore).map(group => ({
+      ...group,
+      checkIns: group.checkIns.sort((a, b) => 
+        a.cageNumber.localeCompare(b.cageNumber)
+      ),
+    }));
   },
 
   addOwner: (owner) => {
@@ -314,10 +377,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       status: 'active',
     });
 
+    let feedingPlanId: string | undefined;
     if (feedingPlan) {
-      get().addFeedingPlan({
+      feedingPlanId = get().addFeedingPlan({
         ...feedingPlan,
         petId,
+        version: 1,
+        effectiveFrom: checkIn.checkInDate,
+        isActive: true,
       });
     }
 
@@ -332,11 +399,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       { type: 'cleaning', time: '20:00', needsInventory: false },
     ];
 
-    const plan = feedingPlan 
-      ? { inventoryId: feedingPlan.inventoryId, defaultAmount: feedingPlan.defaultAmount }
+    const planData = feedingPlan && feedingPlanId
+      ? { 
+          inventoryId: feedingPlan.inventoryId, 
+          defaultAmount: feedingPlan.defaultAmount,
+          feedingPlanId,
+          feedingPlanVersion: 1,
+          inventoryName: feedingPlan.inventoryId 
+            ? state.inventoryItems.find(i => i.id === feedingPlan.inventoryId)?.name 
+            : undefined,
+        }
       : (() => {
           const inventoryFood = state.inventoryItems.find(i => i.type === 'food' && i.storeId === checkIn.storeId);
-          return { inventoryId: inventoryFood?.id, defaultAmount: 150 };
+          return { 
+            inventoryId: inventoryFood?.id, 
+            defaultAmount: 150,
+            feedingPlanId: undefined,
+            feedingPlanVersion: undefined,
+            inventoryName: inventoryFood?.name,
+          };
         })();
 
     taskTypes.forEach(tt => {
@@ -346,8 +427,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         type: tt.type,
         scheduledTime: `${today}T${tt.time}:00`,
         status: 'pending',
-        inventoryId: tt.needsInventory ? plan.inventoryId : undefined,
-        foodAmount: tt.needsInventory ? plan.defaultAmount : undefined,
+        inventoryId: tt.needsInventory ? planData.inventoryId : undefined,
+        foodAmount: tt.needsInventory ? planData.defaultAmount : undefined,
+        feedingPlanId: tt.needsInventory ? planData.feedingPlanId : undefined,
+        feedingPlanVersion: tt.needsInventory ? planData.feedingPlanVersion : undefined,
+        inventoryName: tt.needsInventory ? planData.inventoryName : undefined,
       });
     });
 
@@ -379,8 +463,67 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateFeedingPlan: (petId, updates) => {
     set(state => ({
       feedingPlans: state.feedingPlans.map(p => 
-        p.petId === petId ? { ...p, ...updates } : p
+        p.petId === petId && p.isActive ? { ...p, ...updates } : p
       ),
+    }));
+  },
+
+  createFeedingPlanVersion: (petId, updates, reason) => {
+    const state = get();
+    const currentPlan = state.feedingPlans.find(p => p.petId === petId && p.isActive);
+    if (!currentPlan) return '';
+    
+    const now = new Date().toISOString();
+    const newVersion = currentPlan.version + 1;
+    
+    const newPlan: FeedingPlan = {
+      ...currentPlan,
+      ...updates,
+      id: `plan-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      version: newVersion,
+      effectiveFrom: now.split('T')[0],
+      isActive: true,
+      changeReason: reason,
+    };
+    
+    set(state => ({
+      feedingPlans: state.feedingPlans
+        .map(p => p.petId === petId && p.isActive ? { ...p, isActive: false } : p)
+        .concat(newPlan),
+    }));
+    
+    get().applyFeedingPlanToPendingTasks(petId);
+    return newPlan.id;
+  },
+
+  applyFeedingPlanToPendingTasks: (petId) => {
+    const state = get();
+    const plan = state.feedingPlans.find(p => p.petId === petId && p.isActive);
+    if (!plan) return;
+    
+    const activeCheckIns = state.checkIns.filter(
+      c => c.petId === petId && c.status === 'active'
+    );
+    
+    const inventory = plan.inventoryId 
+      ? state.inventoryItems.find(i => i.id === plan.inventoryId)
+      : undefined;
+    
+    set(state => ({
+      feedingTasks: state.feedingTasks.map(task => {
+        const isMatching = activeCheckIns.some(c => c.id === task.checkInId)
+          && task.type === 'feeding'
+          && task.status === 'pending';
+        if (!isMatching) return task;
+        return {
+          ...task,
+          foodAmount: plan.defaultAmount,
+          inventoryId: plan.inventoryId,
+          inventoryName: inventory?.name,
+          feedingPlanId: plan.id,
+          feedingPlanVersion: plan.version,
+        };
+      }),
     }));
   },
 
@@ -409,50 +552,45 @@ export const useAppStore = create<AppState>((set, get) => ({
       finalAmount = task.foodAmount;
     }
     
-    if (task.type === 'feeding' && !finalAmount) {
+    let plan: FeedingPlan | undefined;
+    if (task.type === 'feeding') {
       const checkIn = state.checkIns.find(c => c.id === task.checkInId);
       if (checkIn) {
-        const plan = state.feedingPlans.find(p => p.petId === checkIn.petId);
-        if (plan) finalAmount = plan.defaultAmount;
+        plan = state.feedingPlans.find(p => p.petId === checkIn.petId && p.isActive);
       }
     }
+    
+    if (task.type === 'feeding' && !finalAmount && plan) {
+      finalAmount = plan.defaultAmount;
+    }
 
-    const inventoryId = task.inventoryId || (() => {
-      const checkIn = state.checkIns.find(c => c.id === task.checkInId);
-      if (checkIn) {
-        const plan = state.feedingPlans.find(p => p.petId === checkIn.petId);
-        return plan?.inventoryId;
-      }
-      return undefined;
-    })();
+    const inventoryId = task.inventoryId || plan?.inventoryId;
+    const inventory = inventoryId ? state.inventoryItems.find(i => i.id === inventoryId) : undefined;
 
-    if (inventoryId && finalAmount && task.type === 'feeding') {
-      const inventory = state.inventoryItems.find(i => i.id === inventoryId);
-      if (inventory) {
-        const deductionKg = finalAmount / 1000;
-        const newQuantity = Math.max(0, inventory.quantity - deductionKg);
-        
-        set(state => ({
-          inventoryItems: state.inventoryItems.map(i => 
-            i.id === inventoryId 
-              ? { ...i, quantity: newQuantity, lastUpdated: actualTime }
-              : i
-          ),
-        }));
+    if (inventoryId && finalAmount && task.type === 'feeding' && inventory) {
+      const deductionKg = finalAmount / 1000;
+      const newQuantity = Math.max(0, inventory.quantity - deductionKg);
+      
+      set(state => ({
+        inventoryItems: state.inventoryItems.map(i => 
+          i.id === inventoryId 
+            ? { ...i, quantity: newQuantity, lastUpdated: actualTime }
+            : i
+        ),
+      }));
 
-        if (newQuantity <= inventory.warningLevel && newQuantity > 0) {
-          const existingAlert = state.alerts.find(
-            a => a.type === 'inventory' && a.relatedId === inventoryId && !a.isRead
-          );
-          if (!existingAlert) {
-            get().addAlert({
-              type: 'inventory',
-              title: '库存补货提醒',
-              description: `「${inventory.name}」库存仅剩 ${newQuantity}${inventory.unit}，已低于警戒线 ${inventory.warningLevel}${inventory.unit}，请及时补货！`,
-              priority: newQuantity <= inventory.warningLevel * 0.5 ? 'high' : 'medium',
-              relatedId: inventoryId,
-            });
-          }
+      if (newQuantity <= inventory.warningLevel && newQuantity > 0) {
+        const existingAlert = state.alerts.find(
+          a => a.type === 'inventory' && a.relatedId === inventoryId && !a.isRead
+        );
+        if (!existingAlert) {
+          get().addAlert({
+            type: 'inventory',
+            title: '库存补货提醒',
+            description: `「${inventory.name}」库存仅剩 ${Number(newQuantity.toFixed(2))}${inventory.unit}，已低于警戒线 ${inventory.warningLevel}${inventory.unit}，请及时补货！`,
+            priority: newQuantity <= inventory.warningLevel * 0.5 ? 'high' : 'medium',
+            relatedId: inventoryId,
+          });
         }
       }
     }
@@ -460,7 +598,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     set(state => ({
       feedingTasks: state.feedingTasks.map(t => 
         t.id === id 
-          ? { ...t, status: 'completed', actualTime, foodAmount: finalAmount, notes, notifyOwner }
+          ? { 
+              ...t, 
+              status: 'completed', 
+              actualTime, 
+              foodAmount: finalAmount, 
+              notes, 
+              notifyOwner,
+              feedingPlanId: plan?.id || task.feedingPlanId,
+              feedingPlanVersion: plan?.version || task.feedingPlanVersion,
+              inventoryName: inventory?.name || task.inventoryName,
+            }
           : t
       ),
     }));
@@ -480,9 +628,16 @@ export const useAppStore = create<AppState>((set, get) => ({
           medication: '喂药',
         };
         const taskName = taskNames[task.type] || '照护';
-        let content = `已完成${taskName}任务。`;
+        let content = `✅ 已完成${taskName}任务。`;
         if (finalAmount && task.type === 'feeding') {
-          content += ` 食量：${finalAmount}克。`;
+          content += ` 食量：${finalAmount}克`;
+          if (inventory) {
+            content += `（${inventory.name}）`;
+          }
+          if (plan) {
+            content += ` · 方案 v${plan.version}`;
+          }
+          content += '。';
         }
         if (notes) {
           content += ` 备注：${notes}`;
@@ -622,6 +777,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       ...alert, 
       id, 
       isRead: false,
+      status: 'pending',
       createdAt: new Date().toISOString(),
     };
     set(state => ({ alerts: [...state.alerts, newAlert] }));
@@ -638,6 +794,69 @@ export const useAppStore = create<AppState>((set, get) => ({
     set(state => ({
       alerts: state.alerts.map(a => ({ ...a, isRead: true })),
     }));
+  },
+
+  updateAlertStatus: (id, status, relatedMessageId) => {
+    const now = new Date().toISOString();
+    set(state => ({
+      alerts: state.alerts.map(a => 
+        a.id === id ? { 
+          ...a, 
+          status, 
+          updatedAt: now, 
+          isRead: true,
+          ...(relatedMessageId && { relatedMessageId })
+        } : a
+      ),
+    }));
+  },
+
+  sendHealthReportToOwner: (alertId) => {
+    const state = get();
+    const alert = state.alerts.find(a => a.id === alertId);
+    if (!alert || !alert.checkInId) {
+      return { success: false };
+    }
+    
+    const employee = state.employees.find(e => e.id === state.currentUserId);
+    if (!employee) return { success: false };
+
+    const healthRecordId = alert.relatedId;
+    const healthRecord = healthRecordId
+      ? state.healthRecords.find(r => r.id === healthRecordId)
+      : undefined;
+    const checkIn = state.checkIns.find(c => c.id === alert.checkInId);
+    const pet = checkIn ? state.pets.find(p => p.id === checkIn.petId) : undefined;
+
+    let content = `⚠️ 【健康异常通知】${pet ? pet.name : '宠物'} \n\n${alert.description}`;
+    if (healthRecord) {
+      content += `\n\n📋 当前状态：\n• 体温：${healthRecord.temperature}°C\n• 精神：${healthRecord.mentalStatus}\n• 食欲：${healthRecord.appetite}`;
+      if (healthRecord.medication) {
+        content += `\n• 用药：${healthRecord.medication}`;
+      }
+      if (healthRecord.notes) {
+        content += `\n• 备注：${healthRecord.notes}`;
+      }
+    }
+    content += `\n\n我们会持续关注宠物状态，有任何变化会及时通知您。如有疑问请随时联系我们。`;
+
+    const messageId = get().addMessage({
+      checkInId: alert.checkInId,
+      senderType: 'staff',
+      senderName: employee.name,
+      content,
+    });
+
+    const now = new Date().toISOString();
+    set(state => ({
+      alerts: state.alerts.map(a => 
+        a.id === alertId 
+          ? { ...a, status: 'contacted', isRead: true, relatedMessageId: messageId, updatedAt: now }
+          : a
+      ),
+    }));
+
+    return { success: true, messageId };
   },
 
   setCurrentStore: (storeId) => {

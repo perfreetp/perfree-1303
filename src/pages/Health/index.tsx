@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { useAppStore } from '../../store/appStore';
-import { MentalStatus, Appetite, BowelMovement } from '../../data/types';
+import { MentalStatus, Appetite, BowelMovement, AlertStatus } from '../../data/types';
 
 const mentalStatusConfig: Record<MentalStatus, { label: string; icon: any; color: string; score: number }> = {
   excellent: { label: '非常好', icon: Smile, color: 'text-green-500 bg-green-50', score: 5 },
@@ -52,7 +52,7 @@ const bowelConfig: Record<BowelMovement, { label: string; color: string }> = {
 };
 
 export default function Health() {
-  const { healthRecords, pets, checkIns, getActiveCheckIns, addHealthRecord, addMessage, employees, currentUserId } = useAppStore();
+  const { healthRecords, pets, checkIns, getActiveCheckIns, addHealthRecord, addMessage, employees, currentUserId, alerts, updateAlertStatus } = useAppStore();
   const [selectedPetId, setSelectedPetId] = useState<string | 'all'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -214,14 +214,21 @@ export default function Health() {
     const employee = employees.find(e => e.id === currentUserId);
     if (!employee) return;
 
-    addMessage({
+    const messageId = addMessage({
       checkInId: selectedCheckInId,
       senderType: 'staff',
       senderName: employee.name,
       content: selectedCheckInDetails.generateOwnerMessage(),
     });
 
-    alert('已发送健康报告给主人！');
+    const petAlerts = alerts.filter(
+      a => a.checkInId === selectedCheckInId && a.type === 'health' && a.status === 'pending'
+    );
+    petAlerts.forEach(alert => {
+      updateAlertStatus(alert.id, 'contacted', messageId);
+    });
+
+    alert(`已发送健康报告给主人！${petAlerts.length > 0 ? `\n${petAlerts.length} 条异常已标记为"已联系主人"` : ''}`);
   };
 
   const getTemperatureColor = (temp: number) => {

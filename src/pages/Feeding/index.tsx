@@ -16,9 +16,13 @@ import {
   Pill,
   X,
   Cookie,
+  Settings,
+  Calendar,
+  History,
+  Package,
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
-import { TaskType } from '../../data/types';
+import { TaskType, FeedingPlan } from '../../data/types';
 
 const taskTypeConfig: Record<TaskType, { label: string; icon: any; color: string }> = {
   feeding: { label: '喂食', icon: UtensilsCrossed, color: 'bg-orange-100 text-orange-600' },
@@ -40,7 +44,20 @@ const timeSlots = [
 ];
 
 export default function Feeding() {
-  const { getTasksForToday, completeTask, employees, getActiveCheckIns, addTask, currentUserId, inventoryItems, currentStoreId } = useAppStore();
+  const { 
+    getTasksForToday, 
+    completeTask, 
+    employees, 
+    getActiveCheckIns, 
+    addTask, 
+    currentUserId, 
+    inventoryItems, 
+    currentStoreId,
+    getFeedingPlanForPet,
+    getFeedingPlanHistory,
+    createFeedingPlanVersion,
+    stores,
+  } = useAppStore();
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<TaskType | 'all'>('all');
   const [foodAmount, setFoodAmount] = useState<number>(200);
@@ -50,6 +67,17 @@ export default function Feeding() {
   const [snackCheckInId, setSnackCheckInId] = useState('');
   const [snackAmount, setSnackAmount] = useState(50);
   const [snackNotes, setSnackNotes] = useState('');
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [planCheckInId, setPlanCheckInId] = useState('');
+  const [planForm, setPlanForm] = useState({
+    foodType: 'dry',
+    foodBrand: '',
+    defaultAmount: 100,
+    dailyMeals: 3,
+    inventoryId: '',
+    specialNotes: '',
+    changeReason: '',
+  });
 
   const tasks = getTasksForToday();
   const activeCheckIns = getActiveCheckIns();
@@ -101,6 +129,48 @@ export default function Feeding() {
     setSnackNotes('');
   };
 
+  const openPlanModal = (checkInId: string) => {
+    const checkIn = activeCheckIns.find(c => c.id === checkInId);
+    if (!checkIn) return;
+    
+    const plan = getFeedingPlanForPet(checkIn.petId);
+    setPlanCheckInId(checkInId);
+    
+    if (plan) {
+      setPlanForm({
+        foodType: plan.foodType,
+        foodBrand: plan.foodBrand || '',
+        defaultAmount: plan.defaultAmount,
+        dailyMeals: plan.dailyMeals,
+        inventoryId: plan.inventoryId || '',
+        specialNotes: plan.specialNotes || '',
+        changeReason: '',
+      });
+    }
+    setShowPlanModal(true);
+  };
+
+  const handleSavePlan = () => {
+    const checkIn = activeCheckIns.find(c => c.id === planCheckInId);
+    if (!checkIn) return;
+
+    createFeedingPlanVersion(
+      checkIn.petId,
+      {
+        foodType: planForm.foodType as any,
+        foodBrand: planForm.foodBrand,
+        defaultAmount: planForm.defaultAmount,
+        dailyMeals: planForm.dailyMeals,
+        inventoryId: planForm.inventoryId || undefined,
+        specialNotes: planForm.specialNotes,
+      },
+      planForm.changeReason || '调整喂养方案'
+    );
+
+    setShowPlanModal(false);
+    setPlanCheckInId('');
+  };
+
   const formatTime = (dateStr: string) => {
     return dateStr.split('T')[1]?.substring(0, 5) || '';
   };
@@ -116,10 +186,16 @@ export default function Feeding() {
           <h1 className="text-2xl font-bold text-gray-800">喂养任务</h1>
           <p className="text-gray-500 mt-1">管理今日喂养和照护任务</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowSnackModal(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          临时加餐
-        </button>
+        <div className="flex gap-2">
+          <button className="btn-outline" onClick={() => openPlanModal(activeCheckIns[0]?.id || '')}>
+            <Settings className="w-4 h-4 mr-2" />
+            喂养方案
+          </button>
+          <button className="btn-primary" onClick={() => setShowSnackModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            临时加餐
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -274,6 +350,14 @@ export default function Feeding() {
                               {task.notes}
                               {task.foodAmount && ` · 食量 ${task.foodAmount}g`}
                             </p>
+                          )}
+
+                          {task.status === 'completed' && task.inventoryName && task.type === 'feeding' && (
+                            <div className="flex items-center gap-1 text-xs text-purple-600 bg-purple-50 rounded px-2 py-1 mt-2 w-fit">
+                              <Package className="w-3 h-3" />
+                              扣减 {task.inventoryName} {task.foodAmount || task.portionAmount || '-'}g
+                              {task.feedingPlanVersion && ` · 方案 v${task.feedingPlanVersion}`}
+                            </div>
                           )}
 
                           {task.status === 'completed' && task.actualTime && (
@@ -439,6 +523,14 @@ export default function Feeding() {
                             </div>
                           )}
 
+                          {task.status === 'completed' && task.inventoryName && task.type === 'feeding' && (
+                            <div className="flex items-center gap-1 text-xs text-purple-600 bg-purple-50 rounded px-2 py-1 mt-2 w-fit">
+                              <Package className="w-3 h-3" />
+                              扣减 {task.inventoryName} {task.foodAmount || task.portionAmount || '-'}g
+                              {task.feedingPlanVersion && ` · 方案 v${task.feedingPlanVersion}`}
+                            </div>
+                          )}
+
                           {isSelected && task.status === 'pending' && (
                             <div className="mt-4 pt-4 border-t border-gray-100 space-y-3 animate-slide-up">
                               {task.type === 'feeding' && (
@@ -584,6 +676,256 @@ export default function Feeding() {
               >
                 <Plus className="w-4 h-4 mr-2" />
                 添加任务
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPlanModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-lg animate-slide-up max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Settings className="w-5 h-5 text-secondary-500" />
+                喂养方案管理
+              </h3>
+              <button
+                onClick={() => setShowPlanModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  选择宠物 <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={planCheckInId}
+                  onChange={(e) => {
+                    setPlanCheckInId(e.target.value);
+                    if (e.target.value) {
+                      openPlanModal(e.target.value);
+                    }
+                  }}
+                  className="input"
+                >
+                  <option value="">请选择宠物</option>
+                  {activeCheckIns.map(ci => (
+                    <option key={ci.id} value={ci.id}>
+                      {ci.pet.name} - {ci.pet.breed}（笼位 {ci.cageNumber}）
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {planCheckInId && (() => {
+                const checkIn = activeCheckIns.find(c => c.id === planCheckInId);
+                const planHistory = checkIn ? getFeedingPlanHistory(checkIn.petId) : [];
+                const currentPlan = planHistory.find(p => p.isActive);
+                
+                return (
+                  <>
+                    {currentPlan && (
+                      <div className="bg-secondary-50 rounded-xl p-4 border border-secondary-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-secondary-700">当前生效方案</span>
+                          <span className="text-xs bg-secondary-200 text-secondary-700 px-2 py-0.5 rounded-full">
+                            v{currentPlan.version}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                          <div>
+                            <span className="text-gray-400">粮食：</span>
+                            {currentPlan.foodBrand || '未设置'}
+                          </div>
+                          <div>
+                            <span className="text-gray-400">餐数：</span>
+                            {currentPlan.dailyMeals} 餐/天
+                          </div>
+                          <div>
+                            <span className="text-gray-400">每餐：</span>
+                            {currentPlan.defaultAmount}g
+                          </div>
+                          <div>
+                            <span className="text-gray-400">生效时间：</span>
+                            {currentPlan.effectiveFrom?.split('T')[0] || '-'}
+                          </div>
+                        </div>
+                        {currentPlan.changeReason && (
+                          <div className="mt-2 text-xs text-gray-500 bg-white/60 rounded px-2 py-1">
+                            变更原因：{currentPlan.changeReason}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="border-t border-gray-100 pt-4">
+                      <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-primary-500" />
+                        修改方案（立即生效）
+                      </h4>
+                      
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              粮食类型
+                            </label>
+                            <select
+                              value={planForm.foodType}
+                              onChange={(e) => setPlanForm({...planForm, foodType: e.target.value})}
+                              className="input"
+                            >
+                              <option value="dry">干粮</option>
+                              <option value="wet">湿粮</option>
+                              <option value="mixed">混合</option>
+                              <option value="prescription">处方粮</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              品牌
+                            </label>
+                            <input
+                              type="text"
+                              value={planForm.foodBrand}
+                              onChange={(e) => setPlanForm({...planForm, foodBrand: e.target.value})}
+                              className="input"
+                              placeholder="如：皇家"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              每餐食量（克）
+                            </label>
+                            <input
+                              type="number"
+                              value={planForm.defaultAmount}
+                              onChange={(e) => setPlanForm({...planForm, defaultAmount: Number(e.target.value)})}
+                              className="input"
+                              min="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              每日餐数
+                            </label>
+                            <div className="flex gap-2">
+                              {[2, 3, 4].map(num => (
+                                <button
+                                  key={num}
+                                  onClick={() => setPlanForm({...planForm, dailyMeals: num})}
+                                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    planForm.dailyMeals === num
+                                      ? 'bg-primary-500 text-white'
+                                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {num}餐
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            关联库存
+                          </label>
+                          <select
+                            value={planForm.inventoryId}
+                            onChange={(e) => setPlanForm({...planForm, inventoryId: e.target.value})}
+                            className="input"
+                          >
+                            <option value="">不关联库存</option>
+                            {inventoryItems
+                              .filter(i => i.type === 'food' && i.storeId === currentStoreId)
+                              .map(item => (
+                                <option key={item.id} value={item.id}>
+                                  {item.name}（剩余 {item.quantity}{item.unit}）
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            喂养备注
+                          </label>
+                          <textarea
+                            value={planForm.specialNotes}
+                            onChange={(e) => setPlanForm({...planForm, specialNotes: e.target.value})}
+                            className="input min-h-[60px] resize-none"
+                            placeholder="特殊喂养要求..."
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            变更原因 <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={planForm.changeReason}
+                            onChange={(e) => setPlanForm({...planForm, changeReason: e.target.value})}
+                            className="input"
+                            placeholder="如：换粮、肠胃不适调整餐数"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {planHistory.length > 1 && (
+                      <div className="border-t border-gray-100 pt-4">
+                        <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
+                          <History className="w-4 h-4 text-gray-500" />
+                          历史版本
+                        </h4>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {planHistory
+                            .filter(p => !p.isActive)
+                            .sort((a, b) => (b.version || 0) - (a.version || 0))
+                            .map(plan => (
+                              <div key={plan.id} className="text-xs bg-gray-50 rounded-lg p-2 flex items-center justify-between">
+                                <div>
+                                  <span className="font-medium text-gray-700">v{plan.version}</span>
+                                  <span className="text-gray-400 ml-2">
+                                    {plan.dailyMeals}餐/天 · {plan.defaultAmount}g
+                                  </span>
+                                </div>
+                                <span className="text-gray-400">
+                                  {plan.effectiveFrom?.split('T')[0] || '-'}
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
+            <div className="flex gap-3 p-5 border-t border-gray-100 sticky bottom-0 bg-white">
+              <button
+                onClick={() => setShowPlanModal(false)}
+                className="btn-outline flex-1"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSavePlan}
+                disabled={!planCheckInId || !planForm.changeReason}
+                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                保存新方案
               </button>
             </div>
           </div>

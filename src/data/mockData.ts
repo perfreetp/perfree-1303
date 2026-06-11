@@ -16,6 +16,10 @@ import {
   FeedingPlan,
 } from './types';
 
+const generateCageNumbers = (prefix: string, count: number) => {
+  return Array.from({ length: count }, (_, i) => `${prefix}${String(i + 1).padStart(2, '0')}`);
+};
+
 export const stores: Store[] = [
   {
     id: 'store-1',
@@ -24,6 +28,7 @@ export const stores: Store[] = [
     phone: '010-88888888',
     totalCages: 30,
     occupiedCages: 18,
+    cageNumbers: generateCageNumbers('A', 30),
   },
   {
     id: 'store-2',
@@ -32,6 +37,7 @@ export const stores: Store[] = [
     phone: '010-66666666',
     totalCages: 25,
     occupiedCages: 12,
+    cageNumbers: generateCageNumbers('B', 25),
   },
   {
     id: 'store-3',
@@ -40,6 +46,7 @@ export const stores: Store[] = [
     phone: '010-77777777',
     totalCages: 20,
     occupiedCages: 8,
+    cageNumbers: generateCageNumbers('C', 20),
   },
 ];
 
@@ -751,6 +758,7 @@ export const alerts: Alert[] = [
     description: '柴犬"旺财"体温39.5°C，精神不佳，请及时处理',
     priority: 'high',
     isRead: false,
+    status: 'pending',
     relatedId: 'health-20',
     createdAt: `${formatDate(today)}T09:30:00`,
   },
@@ -761,6 +769,7 @@ export const alerts: Alert[] = [
     description: '益生菌库存仅剩8盒，已低于警戒线10盒',
     priority: 'medium',
     isRead: false,
+    status: 'pending',
     relatedId: 'inv-11',
     createdAt: `${formatDate(today)}T08:00:00`,
   },
@@ -772,6 +781,7 @@ export const alerts: Alert[] = [
     description: '橘猫"橘子"的狂犬疫苗将在30天后到期',
     priority: 'low',
     isRead: false,
+    status: 'pending',
     relatedId: 'pet-8',
     createdAt: `${formatDate(today)}T08:00:00`,
   },
@@ -782,6 +792,7 @@ export const alerts: Alert[] = [
     description: '有3个入住即将离店，请提前准备账单',
     priority: 'medium',
     isRead: true,
+    status: 'resolved',
     createdAt: `${formatDate(today)}T08:00:00`,
   },
   {
@@ -791,6 +802,7 @@ export const alerts: Alert[] = [
     description: '宠物消毒液库存仅剩5桶，已低于警戒线',
     priority: 'high',
     isRead: false,
+    status: 'pending',
     relatedId: 'inv-9',
     createdAt: `${formatDate(today)}T08:00:00`,
   },
@@ -824,6 +836,9 @@ export const feedingPlans: FeedingPlan[] = [
     defaultAmount: 150,
     dailyMeals: 3,
     specialNotes: '饭后半小时内不要剧烈运动',
+    version: 1,
+    effectiveFrom: '2026-06-01',
+    isActive: true,
   },
   {
     id: 'plan-2',
@@ -833,6 +848,9 @@ export const feedingPlans: FeedingPlan[] = [
     inventoryId: 'inv-2',
     defaultAmount: 200,
     dailyMeals: 2,
+    version: 1,
+    effectiveFrom: '2026-06-01',
+    isActive: true,
   },
   {
     id: 'plan-3',
@@ -842,6 +860,9 @@ export const feedingPlans: FeedingPlan[] = [
     defaultAmount: 180,
     dailyMeals: 2,
     specialNotes: '需提前解冻',
+    version: 1,
+    effectiveFrom: '2026-06-01',
+    isActive: true,
   },
   {
     id: 'plan-4',
@@ -851,6 +872,9 @@ export const feedingPlans: FeedingPlan[] = [
     inventoryId: 'inv-3',
     defaultAmount: 120,
     dailyMeals: 3,
+    version: 1,
+    effectiveFrom: '2026-06-01',
+    isActive: true,
   },
   {
     id: 'plan-5',
@@ -860,6 +884,9 @@ export const feedingPlans: FeedingPlan[] = [
     inventoryId: 'inv-4',
     defaultAmount: 250,
     dailyMeals: 2,
+    version: 1,
+    effectiveFrom: '2026-06-01',
+    isActive: true,
   },
   {
     id: 'plan-6',
@@ -870,6 +897,9 @@ export const feedingPlans: FeedingPlan[] = [
     defaultAmount: 80,
     dailyMeals: 2,
     specialNotes: '需要充足饮水',
+    version: 1,
+    effectiveFrom: '2026-06-01',
+    isActive: true,
   },
   {
     id: 'plan-7',
@@ -880,6 +910,9 @@ export const feedingPlans: FeedingPlan[] = [
     defaultAmount: 90,
     dailyMeals: 3,
     specialNotes: '多喝水，避免高盐食物',
+    version: 1,
+    effectiveFrom: '2026-06-01',
+    isActive: true,
   },
   {
     id: 'plan-8',
@@ -889,6 +922,9 @@ export const feedingPlans: FeedingPlan[] = [
     inventoryId: 'inv-7',
     defaultAmount: 100,
     dailyMeals: 2,
+    version: 1,
+    effectiveFrom: '2026-06-01',
+    isActive: true,
   },
   {
     id: 'plan-9',
@@ -897,6 +933,9 @@ export const feedingPlans: FeedingPlan[] = [
     foodBrand: '伯纳天纯小型犬',
     defaultAmount: 120,
     dailyMeals: 3,
+    version: 1,
+    effectiveFrom: '2026-06-01',
+    isActive: true,
   },
   {
     id: 'plan-10',
@@ -905,5 +944,8 @@ export const feedingPlans: FeedingPlan[] = [
     foodBrand: '纽翠斯黑钻',
     defaultAmount: 180,
     dailyMeals: 2,
+    version: 1,
+    effectiveFrom: '2026-06-01',
+    isActive: true,
   },
 ];

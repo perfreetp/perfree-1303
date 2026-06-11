@@ -106,7 +106,8 @@ export default function CheckIn() {
       const query = searchQuery.toLowerCase();
       return (
         ci.pet.name.toLowerCase().includes(query) ||
-        ci.owner.name.toLowerCase().includes(query)
+        ci.owner.name.toLowerCase().includes(query) ||
+        ci.cageNumber?.toLowerCase().includes(query)
       );
     });
   })();
