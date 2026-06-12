@@ -20,6 +20,7 @@ import {
   Calendar,
   History,
   Package,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { TaskType, FeedingPlan } from '../../data/types';
@@ -77,6 +78,8 @@ export default function Feeding() {
     inventoryId: '',
     specialNotes: '',
     changeReason: '',
+    effectiveDate: new Date().toISOString().split('T')[0],
+    effectiveTime: new Date().toTimeString().slice(0, 5),
   });
 
   const tasks = getTasksForToday();
@@ -137,6 +140,7 @@ export default function Feeding() {
     setPlanCheckInId(checkInId);
     
     if (plan) {
+      const now = new Date();
       setPlanForm({
         foodType: plan.foodType,
         foodBrand: plan.foodBrand || '',
@@ -145,6 +149,8 @@ export default function Feeding() {
         inventoryId: plan.inventoryId || '',
         specialNotes: plan.specialNotes || '',
         changeReason: '',
+        effectiveDate: now.toISOString().split('T')[0],
+        effectiveTime: now.toTimeString().slice(0, 5),
       });
     }
     setShowPlanModal(true);
@@ -153,6 +159,8 @@ export default function Feeding() {
   const handleSavePlan = () => {
     const checkIn = activeCheckIns.find(c => c.id === planCheckInId);
     if (!checkIn) return;
+
+    const effectiveDateTime = `${planForm.effectiveDate}T${planForm.effectiveTime}:00`;
 
     createFeedingPlanVersion(
       checkIn.petId,
@@ -164,7 +172,8 @@ export default function Feeding() {
         inventoryId: planForm.inventoryId || undefined,
         specialNotes: planForm.specialNotes,
       },
-      planForm.changeReason || '调整喂养方案'
+      planForm.changeReason || '调整喂养方案',
+      effectiveDateTime
     );
 
     setShowPlanModal(false);
@@ -878,6 +887,48 @@ export default function Feeding() {
                             className="input"
                             placeholder="如：换粮、肠胃不适调整餐数"
                           />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-primary-500" />
+                              生效日期 <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="date"
+                              value={planForm.effectiveDate}
+                              onChange={(e) => setPlanForm({...planForm, effectiveDate: e.target.value})}
+                              className="input"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-primary-500" />
+                              生效时间 <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="time"
+                              value={planForm.effectiveTime}
+                              onChange={(e) => setPlanForm({...planForm, effectiveTime: e.target.value})}
+                              className="input"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="text-xs text-gray-500 bg-blue-50 rounded-lg p-3 border border-blue-100">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
+                            <div>
+                              新方案将从 <span className="font-medium text-blue-700">{planForm.effectiveDate} {planForm.effectiveTime}</span> 起生效
+                              <br />
+                              • 此时间之后的未完成任务将按新方案执行
+                              <br />
+                              • 已完成任务保持原有记录不变
+                              <br />
+                              • 如修改餐数，当天后续任务数量会自动调整
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

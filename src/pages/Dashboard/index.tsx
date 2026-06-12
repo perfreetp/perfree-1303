@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   PawPrint,
   CalendarCheck,
@@ -22,6 +22,17 @@ import {
   MessageCircle,
   X,
   Send,
+  UtensilsCrossed,
+  Droplets,
+  Trash2,
+  Footprints,
+  Bath,
+  Pill,
+  ArrowRight,
+  Heart,
+  Thermometer,
+  Smile,
+  Circle,
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
@@ -45,6 +56,15 @@ const taskTypeColors: Record<TaskType, string> = {
   medication: 'bg-pink-100 text-pink-700',
 };
 
+const taskTypeConfig: Record<TaskType, { icon: any; color: string }> = {
+  feeding: { icon: UtensilsCrossed, color: 'bg-orange-100 text-orange-600' },
+  water: { icon: Droplets, color: 'bg-blue-100 text-blue-600' },
+  cleaning: { icon: Trash2, color: 'bg-purple-100 text-purple-600' },
+  walk: { icon: Footprints, color: 'bg-green-100 text-green-600' },
+  bath: { icon: Bath, color: 'bg-cyan-100 text-cyan-600' },
+  medication: { icon: Pill, color: 'bg-pink-100 text-pink-600' },
+};
+
 const priorityColors = {
   high: 'border-l-red-500 bg-red-50',
   medium: 'border-l-yellow-500 bg-yellow-50',
@@ -64,10 +84,28 @@ export default function Dashboard() {
     getCareOverview,
     updateAlertStatus,
     sendHealthReportToOwner,
+    addTask,
+    addHealthRecord,
+    currentUserId,
+    getFeedingPlanForPet,
+    inventoryItems,
+    currentStoreId,
+    employees,
+    addMessage,
   } = useAppStore();
 
   const [viewMode, setViewMode] = useState<'tasks' | 'overview'>('tasks');
   const [selectedAlert, setSelectedAlert] = useState<string | null>(null);
+  const [selectedCheckIn, setSelectedCheckIn] = useState<any>(null);
+  const [quickAction, setQuickAction] = useState<'feeding' | 'cleaning' | 'health' | null>(null);
+  const [quickForm, setQuickForm] = useState({
+    foodAmount: 100,
+    notes: '',
+    temperature: 38.5,
+    mentalStatus: 'good' as any,
+    appetite: 'good' as any,
+    notifyOwner: true,
+  });
 
   const stats = getDashboardStats();
   const tasks = getTasksForToday();
@@ -77,6 +115,106 @@ export default function Dashboard() {
 
   const pendingTasks = tasks.filter(t => t.status === 'pending').slice(0, 8);
   const completedTasks = tasks.filter(t => t.status === 'completed').slice(0, 5);
+
+  const selectedCheckInTasks = useMemo(() => {
+    if (!selectedCheckIn) return { feeding: [], cleaning: [], health: [], all: [] };
+    const today = new Date().toISOString().split('T')[0];
+    const petTasks = tasks.filter(t => t.checkInId === selectedCheckIn.id && t.scheduledTime.startsWith(today));
+    return {
+      all: petTasks,
+      feeding: petTasks.filter(t => t.type === 'feeding'),
+      cleaning: petTasks.filter(t => t.type === 'cleaning'),
+      health: petTasks.filter(t => t.type === 'medication' || t.type === 'walk' || t.type === 'bath'),
+    };
+  }, [selectedCheckIn, tasks]);
+
+  const openCarePanel = (group: any) => {
+    setSelectedCheckIn(group);
+    setQuickAction(null);
+    const plan = getFeedingPlanForPet(group.petId);
+    if (plan) {
+      setQuickForm(prev => ({ ...prev, foodAmount: plan.defaultAmount }));
+    }
+  };
+
+  const handleQuickComplete = (taskId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    completeTask(taskId, quickForm.foodAmount, quickForm.notes, false);
+  };
+
+  const handleQuickAddFeeding = () => {
+    if (!selectedCheckIn) return;
+    const now = new Date();
+    const timeStr = now.toTimeString().slice(0, 5);
+    const plan = getFeedingPlanForPet(selectedCheckIn.petId);
+    const inventoryFood = inventoryItems.find(i => i.type === 'food' && i.storeId === currentStoreId);
+
+    addTask({
+      checkInId: selectedCheckIn.id,
+      employeeId: currentUserId,
+      type: 'feeding',
+      scheduledTime: `${now.toISOString().split('T')[0]}T${timeStr}:00`,
+      status: 'pending',
+      inventoryId: plan?.inventoryId || inventoryFood?.id,
+      notes: quickForm.notes || '快速补录喂食',
+      foodAmount: quickForm.foodAmount,
+    });
+    setQuickAction(null);
+    setQuickForm(prev => ({ ...prev, notes: '' }));
+  };
+
+  const handleQuickAddCleaning = () => {
+    if (!selectedCheckIn) return;
+    const now = new Date();
+    const timeStr = now.toTimeString().slice(0, 5);
+
+    addTask({
+      checkInId: selectedCheckIn.id,
+      employeeId: currentUserId,
+      type: 'cleaning',
+      scheduledTime: `${now.toISOString().split('T')[0]}T${timeStr}:00`,
+      status: 'pending',
+      notes: quickForm.notes || '快速补录清洁',
+    });
+    setQuickAction(null);
+    setQuickForm(prev => ({ ...prev, notes: '' }));
+  };
+
+  const handleQuickAddHealth = () => {
+    if (!selectedCheckIn) return;
+    const isAbnormal = quickForm.temperature > 39.5 || quickForm.temperature < 37.5 ||
+      quickForm.mentalStatus === 'poor' || quickForm.mentalStatus === 'critical' ||
+      quickForm.appetite === 'poor' || quickForm.appetite === 'none';
+
+    addHealthRecord({
+      checkInId: selectedCheckIn.id,
+      recordDate: new Date().toISOString().split('T')[0],
+      temperature: quickForm.temperature,
+      mentalStatus: quickForm.mentalStatus,
+      appetite: quickForm.appetite,
+      bowelMovement: 'normal',
+      notes: quickForm.notes,
+      isAbnormal,
+    });
+
+    if (quickForm.notifyOwner && isAbnormal) {
+      const employee = employees.find(e => e.id === currentUserId);
+      addMessage({
+        checkInId: selectedCheckIn.id,
+        senderType: 'staff',
+        senderName: employee?.name || '店员',
+        content: `⚠️ 【健康提醒】${selectedCheckIn.pet?.name || '宠物'} 今日健康观察：\n体温：${quickForm.temperature}°C\n精神：${quickForm.mentalStatus}\n食欲：${quickForm.appetite}${quickForm.notes ? `\n备注：${quickForm.notes}` : ''}\n\n我们会持续关注，如有问题及时联系您。`,
+      });
+    }
+
+    setQuickAction(null);
+    setQuickForm(prev => ({ ...prev, notes: '', temperature: 38.5, mentalStatus: 'good', appetite: 'good' }));
+  };
+
+  const handleJumpToCommunication = () => {
+    setSelectedCheckIn(null);
+    window.location.hash = '#/messages';
+  };
 
   const statCards = [
     {
@@ -128,10 +266,6 @@ export default function Dashboard() {
       iconColor: 'text-red-500',
     },
   ];
-
-  const handleQuickComplete = (taskId: string) => {
-    completeTask(taskId, 200, '快速完成');
-  };
 
   const formatTime = (dateStr: string) => {
     return dateStr.split('T')[1]?.substring(0, 5) || '';
@@ -354,12 +488,15 @@ export default function Dashboard() {
                       {group.checkIns.map((ci: any, index: number) => (
                         <div
                           key={ci.id}
+                          onClick={() => openCarePanel(ci)}
                           className={`p-3 rounded-xl border-2 transition-all hover:shadow-md cursor-pointer ${
-                            ci.hasAbnormalToday
-                              ? 'border-red-200 bg-red-50/50'
-                              : ci.feedingCompleted === ci.feedingTotal && ci.cleaningDone && ci.hasHealthRecord
-                                ? 'border-green-200 bg-green-50/30'
-                                : 'border-gray-100 bg-gray-50/50 hover:border-primary-200'
+                            selectedCheckIn?.id === ci.id
+                              ? 'ring-2 ring-primary-400 border-primary-400'
+                              : ci.hasAbnormalToday
+                                ? 'border-red-200 bg-red-50/50'
+                                : ci.feedingCompleted === ci.feedingTotal && ci.cleaningDone && ci.hasHealthRecord
+                                  ? 'border-green-200 bg-green-50/30'
+                                  : 'border-gray-100 bg-gray-50/50 hover:border-primary-200'
                           }`}
                         >
                           <div className="flex items-center gap-2 mb-2">
@@ -429,6 +566,319 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+
+          {selectedCheckIn && (
+            <div className="card p-5 animate-slide-up border-primary-200">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={selectedCheckIn.pet?.photoUrl}
+                    alt={selectedCheckIn.pet?.name}
+                    className="w-14 h-14 rounded-xl object-cover"
+                  />
+                  <div>
+                    <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                      {selectedCheckIn.pet?.name || '未知宠物'}
+                      <span className="badge bg-secondary-100 text-secondary-700 text-xs">
+                        笼位 {selectedCheckIn.cageNumber}
+                      </span>
+                    </h3>
+                    <div className="text-sm text-gray-500 mt-0.5">
+                      {selectedCheckIn.pet?.breed || ''} · {selectedCheckIn.owner?.name || ''}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedCheckIn(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className={`text-center p-3 rounded-xl ${
+                  selectedCheckInTasks.feeding.every(t => t.status === 'completed')
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-orange-50 text-orange-700'
+                }`}>
+                  <UtensilsCrossed className="w-5 h-5 mx-auto mb-1" />
+                  <div className="text-xs font-medium">
+                    喂食 {selectedCheckInTasks.feeding.filter(t => t.status === 'completed').length}/{selectedCheckInTasks.feeding.length}
+                  </div>
+                </div>
+                <div className={`text-center p-3 rounded-xl ${
+                  selectedCheckInTasks.cleaning.every(t => t.status === 'completed')
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-purple-50 text-purple-700'
+                }`}>
+                  <Sparkles className="w-5 h-5 mx-auto mb-1" />
+                  <div className="text-xs font-medium">
+                    清洁 {selectedCheckInTasks.cleaning.filter(t => t.status === 'completed').length}/{selectedCheckInTasks.cleaning.length}
+                  </div>
+                </div>
+                <div className={`text-center p-3 rounded-xl ${
+                  selectedCheckInTasks.health.length > 0 && selectedCheckInTasks.health.every(t => t.status === 'completed')
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-blue-50 text-blue-700'
+                }`}>
+                  <Stethoscope className="w-5 h-5 mx-auto mb-1" />
+                  <div className="text-xs font-medium">
+                    健康 {selectedCheckInTasks.health.filter(t => t.status === 'completed').length}/{selectedCheckInTasks.health.length}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mb-4 flex-wrap">
+                <button
+                  onClick={() => setQuickAction(quickAction === 'feeding' ? null : 'feeding')}
+                  className={`btn-outline text-sm py-2 px-3 ${
+                    quickAction === 'feeding' ? 'bg-orange-50 border-orange-300 text-orange-700' : ''
+                  }`}
+                >
+                  <UtensilsCrossed className="w-4 h-4 mr-1.5" />
+                  补喂食
+                </button>
+                <button
+                  onClick={() => setQuickAction(quickAction === 'cleaning' ? null : 'cleaning')}
+                  className={`btn-outline text-sm py-2 px-3 ${
+                    quickAction === 'cleaning' ? 'bg-purple-50 border-purple-300 text-purple-700' : ''
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4 mr-1.5" />
+                  补清洁
+                </button>
+                <button
+                  onClick={() => setQuickAction(quickAction === 'health' ? null : 'health')}
+                  className={`btn-outline text-sm py-2 px-3 ${
+                    quickAction === 'health' ? 'bg-blue-50 border-blue-300 text-blue-700' : ''
+                  }`}
+                >
+                  <Stethoscope className="w-4 h-4 mr-1.5" />
+                  补健康
+                </button>
+                <button
+                  onClick={handleJumpToCommunication}
+                  className="btn-outline text-sm py-2 px-3 ml-auto"
+                >
+                  <MessageCircle className="w-4 h-4 mr-1.5" />
+                  客户沟通
+                  <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                </button>
+              </div>
+
+              {quickAction === 'feeding' && (
+                <div className="bg-orange-50 rounded-xl p-4 mb-4 animate-slide-up">
+                  <h4 className="font-medium text-orange-800 mb-3 flex items-center gap-2">
+                    <UtensilsCrossed className="w-4 h-4" />
+                    补录喂食记录
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">食量（克）</label>
+                      <input
+                        type="number"
+                        value={quickForm.foodAmount}
+                        onChange={(e) => setQuickForm({...quickForm, foodAmount: Number(e.target.value)})}
+                        className="input py-2"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">备注</label>
+                      <input
+                        type="text"
+                        value={quickForm.notes}
+                        onChange={(e) => setQuickForm({...quickForm, notes: e.target.value})}
+                        className="input py-2"
+                        placeholder="如：食欲良好"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setQuickAction(null)}
+                      className="btn-outline flex-1 text-sm py-2"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleQuickAddFeeding}
+                      className="btn-secondary flex-1 text-sm py-2"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      立即补录
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {quickAction === 'cleaning' && (
+                <div className="bg-purple-50 rounded-xl p-4 mb-4 animate-slide-up">
+                  <h4 className="font-medium text-purple-800 mb-3 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    补录清洁记录
+                  </h4>
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">清洁备注</label>
+                    <input
+                      type="text"
+                      value={quickForm.notes}
+                      onChange={(e) => setQuickForm({...quickForm, notes: e.target.value})}
+                      className="input py-2"
+                      placeholder="如：已更换垫料、消毒笼具"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setQuickAction(null)}
+                      className="btn-outline flex-1 text-sm py-2"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleQuickAddCleaning}
+                      className="btn-secondary flex-1 text-sm py-2"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      立即补录
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {quickAction === 'health' && (
+                <div className="bg-blue-50 rounded-xl p-4 mb-4 animate-slide-up">
+                  <h4 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
+                    <Stethoscope className="w-4 h-4" />
+                    补录健康观察
+                  </h4>
+                  <div className="grid grid-cols-3 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                        <Thermometer className="w-3 h-3" /> 体温
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={quickForm.temperature}
+                        onChange={(e) => setQuickForm({...quickForm, temperature: Number(e.target.value)})}
+                        className="input py-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                        <Smile className="w-3 h-3" /> 精神
+                      </label>
+                      <select
+                        value={quickForm.mentalStatus}
+                        onChange={(e) => setQuickForm({...quickForm, mentalStatus: e.target.value as any})}
+                        className="input py-2"
+                      >
+                        <option value="excellent">非常好</option>
+                        <option value="good">良好</option>
+                        <option value="normal">一般</option>
+                        <option value="poor">较差</option>
+                        <option value="critical">危险</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                        <Heart className="w-3 h-3" /> 食欲
+                      </label>
+                      <select
+                        value={quickForm.appetite}
+                        onChange={(e) => setQuickForm({...quickForm, appetite: e.target.value as any})}
+                        className="input py-2"
+                      >
+                        <option value="excellent">旺盛</option>
+                        <option value="good">良好</option>
+                        <option value="normal">正常</option>
+                        <option value="poor">较差</option>
+                        <option value="none">绝食</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">备注</label>
+                      <input
+                        type="text"
+                        value={quickForm.notes}
+                        onChange={(e) => setQuickForm({...quickForm, notes: e.target.value})}
+                        className="input py-2"
+                        placeholder="观察记录..."
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={quickForm.notifyOwner}
+                          onChange={(e) => setQuickForm({...quickForm, notifyOwner: e.target.checked})}
+                          className="w-4 h-4 text-primary-500 rounded"
+                        />
+                        <span className="text-xs text-gray-600">异常时通知主人</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setQuickAction(null)}
+                      className="btn-outline flex-1 text-sm py-2"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleQuickAddHealth}
+                      className="btn-secondary flex-1 text-sm py-2"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      立即补录
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {selectedCheckInTasks.all.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">今日任务</h4>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {selectedCheckInTasks.all.map((task: any) => {
+                      const Icon = taskTypeConfig[task.type as TaskType]?.icon || Circle;
+                      return (
+                        <div
+                          key={task.id}
+                          className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg"
+                        >
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => task.status === 'pending' && handleQuickComplete(task.id, e)}
+                              className="flex-shrink-0"
+                            >
+                              {task.status === 'completed' ? (
+                                <CheckCircle2 className="w-5 h-5 text-green-500" />
+                              ) : (
+                                <Circle className="w-5 h-5 text-gray-300 hover:text-primary-500 transition-colors" />
+                              )}
+                            </button>
+                            <Icon className={`w-4 h-4 ${taskTypeColors[task.type as TaskType]?.split(' ')[0]?.replace('bg-', 'text-') || 'text-gray-500'}`} />
+                            <span className="text-sm text-gray-700">{taskTypeLabels[task.type as TaskType]}</span>
+                            <span className="text-xs text-gray-400">{formatTime(task.scheduledTime)}</span>
+                          </div>
+                          {task.status === 'completed' && task.inventoryName && (
+                            <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
+                              {task.inventoryName}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">

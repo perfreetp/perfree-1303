@@ -81,8 +81,8 @@ interface AppState {
 
   addFeedingPlan: (plan: Omit<FeedingPlan, 'id'>) => string;
   updateFeedingPlan: (petId: string, updates: Partial<FeedingPlan>) => void;
-  createFeedingPlanVersion: (petId: string, updates: Partial<FeedingPlan>, reason?: string) => string;
-  applyFeedingPlanToPendingTasks: (petId: string) => void;
+  createFeedingPlanVersion: (petId: string, updates: Partial<FeedingPlan>, reason?: string, effectiveDateTime?: string) => string;
+  applyFeedingPlanToPendingTasks: (petId: string, effectiveDateTime?: string) => void;
 
   addTask: (task: Omit<FeedingTask, 'id'>) => string;
   updateTask: (id: string, updates: Partial<FeedingTask>) => void;
@@ -468,12 +468,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
 
-  createFeedingPlanVersion: (petId, updates, reason) => {
+  createFeedingPlanVersion: (petId, updates, reason, effectiveDateTime) => {
     const state = get();
     const currentPlan = state.feedingPlans.find(p => p.petId === petId && p.isActive);
     if (!currentPlan) return '';
     
-    const now = new Date().toISOString();
+    const now = new Date();
+    const effectiveFrom = effectiveDateTime || now.toISOString();
     const newVersion = currentPlan.version + 1;
     
     const newPlan: FeedingPlan = {
@@ -481,7 +482,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       ...updates,
       id: `plan-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       version: newVersion,
-      effectiveFrom: now.split('T')[0],
+      effectiveFrom: effectiveFrom,
       isActive: true,
       changeReason: reason,
     };
@@ -492,39 +493,88 @@ export const useAppStore = create<AppState>((set, get) => ({
         .concat(newPlan),
     }));
     
-    get().applyFeedingPlanToPendingTasks(petId);
+    get().applyFeedingPlanToPendingTasks(petId, effectiveFrom);
     return newPlan.id;
   },
 
-  applyFeedingPlanToPendingTasks: (petId) => {
+  applyFeedingPlanToPendingTasks: (petId, effectiveDateTime) => {
     const state = get();
     const plan = state.feedingPlans.find(p => p.petId === petId && p.isActive);
     if (!plan) return;
     
+    const effectiveTime = effectiveDateTime ? new Date(effectiveDateTime) : new Date();
+    const today = effectiveTime.toISOString().split('T')[0];
+    
     const activeCheckIns = state.checkIns.filter(
       c => c.petId === petId && c.status === 'active'
     );
+    if (activeCheckIns.length === 0) return;
     
     const inventory = plan.inventoryId 
       ? state.inventoryItems.find(i => i.id === plan.inventoryId)
       : undefined;
     
-    set(state => ({
-      feedingTasks: state.feedingTasks.map(task => {
-        const isMatching = activeCheckIns.some(c => c.id === task.checkInId)
-          && task.type === 'feeding'
-          && task.status === 'pending';
-        if (!isMatching) return task;
-        return {
-          ...task,
+    let tasks = [...state.feedingTasks];
+    
+    activeCheckIns.forEach(checkIn => {
+      const todayTasks = tasks.filter(
+        t => t.checkInId === checkIn.id && t.type === 'feeding' && t.scheduledTime.startsWith(today)
+      );
+      
+      const pendingAfterEffective = todayTasks.filter(
+        t => t.status === 'pending' && new Date(t.scheduledTime) >= effectiveTime
+      );
+      
+      const completedBeforeEffective = todayTasks.filter(
+        t => t.status === 'completed' || (t.status === 'pending' && new Date(t.scheduledTime) < effectiveTime)
+      );
+      
+      const completedCount = completedBeforeEffective.filter(t => t.status === 'completed').length;
+      const newTotalMeals = plan.dailyMeals;
+      const remainingNeeded = Math.max(0, newTotalMeals - completedCount);
+      
+      tasks = tasks.filter(t => !pendingAfterEffective.some(p => p.id === t.id));
+      
+      const mealTimes = ['08:00', '12:00', '18:00', '20:00'];
+      const now = new Date();
+      
+      for (let i = 0; i < remainingNeeded; i++) {
+        let scheduledTime: string;
+        if (i < pendingAfterEffective.length && pendingAfterEffective[i]) {
+          scheduledTime = pendingAfterEffective[i].scheduledTime;
+        } else {
+          const timeIndex = Math.min(completedCount + i, mealTimes.length - 1);
+          const mealTime = mealTimes[timeIndex];
+          const candidateTime = new Date(`${today}T${mealTime}:00`);
+          if (candidateTime < effectiveTime) {
+            const nextHour = Math.max(effectiveTime.getHours(), now.getHours());
+            scheduledTime = `${today}T${String(nextHour).padStart(2, '0')}:${String(effectiveTime.getMinutes()).padStart(2, '0')}:00`;
+          } else {
+            scheduledTime = `${today}T${mealTime}:00`;
+          }
+        }
+        
+        const newTask = {
+          id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          checkInId: checkIn.id,
+          employeeId: state.currentUserId,
+          type: 'feeding' as const,
+          scheduledTime,
+          status: 'pending' as const,
           foodAmount: plan.defaultAmount,
+          portionAmount: plan.defaultAmount,
           inventoryId: plan.inventoryId,
           inventoryName: inventory?.name,
           feedingPlanId: plan.id,
           feedingPlanVersion: plan.version,
+          notes: `方案 v${plan.version}`,
         };
-      }),
-    }));
+        tasks.push(newTask);
+      }
+    });
+    
+    tasks.sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
+    set({ feedingTasks: tasks });
   },
 
   addTask: (task) => {

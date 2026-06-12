@@ -17,10 +17,10 @@ import {
   Camera,
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
-import { SenderType } from '../../data/types';
+import { SenderType, AlertStatus } from '../../data/types';
 
 export default function Communication() {
-  const { messages, checkIns, pets, owners, getActiveCheckIns, addMessage, markMessageAsRead, employees, currentUserId, currentStoreId } = useAppStore();
+  const { messages, checkIns, pets, owners, getActiveCheckIns, addMessage, markMessageAsRead, employees, currentUserId, currentStoreId, alerts } = useAppStore();
   const [selectedCheckInId, setSelectedCheckInId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -300,6 +300,30 @@ export default function Communication() {
                           <div className={`rounded-2xl p-3 ${config.bg} ${config.text} ${
                             msg.senderType === 'staff' ? 'rounded-tr-none' : 'rounded-tl-none'
                           }`}>
+                            {(() => {
+                              const relatedAlert = alerts.find(a => a.relatedMessageId === msg.id);
+                              if (relatedAlert) {
+                                const statusLabel: Record<AlertStatus, string> = {
+                                  pending: '待处理',
+                                  contacted: '已联系主人',
+                                  rechecked: '已复查',
+                                  resolved: '已解决',
+                                };
+                                const statusColor: Record<AlertStatus, string> = {
+                                  pending: 'bg-red-200 text-red-700',
+                                  contacted: 'bg-blue-200 text-blue-700',
+                                  rechecked: 'bg-purple-200 text-purple-700',
+                                  resolved: 'bg-green-200 text-green-700',
+                                };
+                                return (
+                                  <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded mb-2 w-fit ${statusColor[relatedAlert.status as AlertStatus] || 'bg-gray-200 text-gray-700'}`}>
+                                    <AlertCircle className="w-3 h-3" />
+                                    健康异常 · {statusLabel[relatedAlert.status as AlertStatus] || '待处理'}
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
                             {msg.photoUrl && (
                               <img
                                 src={msg.photoUrl}
